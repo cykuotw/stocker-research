@@ -20,5 +20,8 @@ next-env.d.ts
 .env.*
 *.log
 
+# Local application research skills (published separately)
+/apps/agent/skills/
+
 # Agent task management
 .agents/*
