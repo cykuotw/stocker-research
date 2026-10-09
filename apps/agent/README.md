@@ -17,8 +17,8 @@ Local application skills belong in `apps/agent/skills/`, which is ignored by Git
 Create it with `mkdir -p apps/agent/skills` from the repository root.
 Development-assistant skills are separate from these application skills.
 
-`SkillSettings` in `stocker_agent.config.skills` reads process environment
-variables without loading dotenv files:
+`SkillSettings` in `stocker_agent.config.skills` reads the `[skills]` section of
+`apps/agent/settings.toml` and process environment without loading dotenv files.
 
 Keep environment settings under `stocker_agent/config/`, grouped by concern.
 The future skill registry and storage loaders belong in separate application modules.
@@ -31,10 +31,91 @@ The future skill registry and storage loaders belong in separate application mod
 | `SKILL_S3_PREFIX` | `skills` | Object prefix within the bucket |
 
 Relative local paths resolve from `apps/agent/`, independently of the working
-directory. Source selection and validation are implemented; skill loading,
-manual refresh API, and graph integration are not implemented yet. No refresh
+directory. Local and S3 skill loading and explicit in-process refresh are implemented.
+The manual refresh API and graph integration are not implemented yet. No refresh
 interval or automatic polling is planned. The echo graph does not use research
 skills. Production will supply these settings through deployment-managed env.
 
 `make dev` disables LangSmith tracing. Future deployments must also keep
 `LANGSMITH_TRACING=false` and `LANGCHAIN_TRACING_V2=false`.
+
+## Skill registry
+
+Each skill directory must contain `SKILL.md` with `name` and `description` YAML
+frontmatter, and `manifest.yaml` with `id` and `version`. Directory name, skill
+name and manifest ID must match. Optional manifest fields are `required_tools`,
+`allowed_agents`, `llm_model`, and `status` (`active` or `inactive`). `llm_model`
+accepts `instant`, `standard` (default), or `complex`.
+
+```python
+from stocker_agent.skills.registry import SkillRegistry
+
+registry = SkillRegistry.from_settings()
+run_skills = registry.snapshot()
+skill = run_skills["echo-agent"]
+instructions = skill.instructions
+
+registry.refresh()  # Explicit reload for subsequent runs
+```
+
+Snapshots are immutable and failed refreshes preserve the previous snapshot.
+Retain a snapshot for an in-flight run; `content_hash` identifies the loaded
+document and manifest. The registry does not execute instructions or grant tools.
+It currently loads only the document and manifest, not optional references.
+S3 uses the same `<prefix>/<skill-id>/` layout; AWS credentials come from the SDK's
+standard credential chain. Updates must not overlap a refresh: immutable published
+revisions, durable resume pinning, and refresh coordination across processes remain
+to be implemented. S3 loading has been tested with a fake client, not a live bucket.
+
+## Model providers
+
+`ModelProvider` exposes LangChain `BaseChatModel` clients for `instant` (small,
+latency-sensitive tasks), `standard` (general analysis), and `complex` (deeper
+synthesis). Graph nodes select tiers without importing provider SDK classes:
+
+```python
+from stocker_agent.llm import ModelProvider, ModelTier
+
+models = ModelProvider()
+model = models.get(ModelTier.STANDARD)
+# Or select the tier declared by a loaded skill:
+model = models.get(skill.manifest.llm_model)
+# In an async graph node: response = await model.ainvoke(messages)
+```
+
+Gemini is the currently supported provider. `settings.toml` selects
+`gemini-3.5-flash-lite` for instant, `gemini-3.8-flash` for standard, and
+`gemini-3.1-pro-preview` for complex. The complex model is a preview; verify
+account availability and evaluate results before production use.
+Override IDs with `LLM_INSTANT_MODEL`, `LLM_STANDARD_MODEL`, and
+`LLM_COMPLEX_MODEL` when needed. Gemini requires `GOOGLE_API_KEY`.
+Keys are read from process environment; settings do not load dotenv files.
+Do not commit credentials or expose them in frontend variables.
+
+Optional settings: `LLM_TIMEOUT_SECONDS=60` and `LLM_MAX_RETRIES=2`.
+Clients are created lazily and cached per tier on a provider instance. Create a
+new instance after changing configuration. Instantiate once and inject it into
+nodes or agents; keep provider-specific model IDs out of graph code.
+
+Tool calling, structured output, reasoning and multimodal capabilities depend
+on the selected model. No automatic tier fallback or capability equivalence is
+implied. The echo graph remains deterministic; no live model call has been verified.
+
+## Settings and environment secrets
+
+Copy `.env.example` to `.env` in `apps/agent/` for a local template and fill in
+`GOOGLE_API_KEY` when using Gemini. Copying the file does not load its values:
+the current `make dev` command does not configure dotenv loading. Supply values
+through your launcher or process environment. The deterministic echo graph
+does not require a Gemini key. S3 variables are optional for local skill mode.
+
+Edit `apps/agent/settings.toml` for model provider, tier model IDs, timeout/retries,
+and skill mode/local path. `[llm-models]` and `[skills]` map to the corresponding
+settings classes. Source priority is explicit constructor values, environment
+overrides, TOML, then defaults. File paths do not depend on the working directory.
+
+Keep `GOOGLE_API_KEY`, `SKILL_S3_BUCKET`, and
+`SKILL_S3_PREFIX` in process environment (locally, these may be supplied by a
+launcher loading an ignored `.env`). These fields are rejected in settings.toml.
+Changing settings requires a new settings/provider instance; no file watcher is
+implemented. Deployment packaging must include the non-secret settings file.

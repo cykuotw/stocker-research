@@ -1,0 +1,11 @@
+[llm-models]
+provider = "gemini"
+instant_model = "gemini-3.5-flash-lite"
+standard_model = "gemini-3.8-flash"
+complex_model = "gemini-3.1-pro-preview"
+timeout_seconds = 600
+max_retries = 2
+
+[skills]
+mode = "local"
+local_path = "./skills"

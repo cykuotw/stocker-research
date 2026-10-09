@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+
+from stocker_agent.config.base import FileSettings
 
 AGENT_DIRECTORY = Path(__file__).resolve().parents[3]
 
@@ -21,8 +23,11 @@ class S3SkillSource:
     prefix: str
 
 
-class SkillSettings(BaseSettings):
+class SkillSettings(FileSettings):
     """Select local or S3 storage; refreshing is an explicit future operation."""
+
+    settings_section = "skills"
+    file_fields = frozenset({"mode", "local_path"})
 
     model_config = SettingsConfigDict(env_prefix="SKILL_", env_file=None, frozen=True)
 

@@ -18,6 +18,7 @@ node_modules/
 next-env.d.ts
 .env
 .env.*
+!apps/agent/.env.example
 *.log
 
 # Local application research skills (published separately)
