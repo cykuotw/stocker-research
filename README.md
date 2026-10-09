@@ -26,7 +26,7 @@ Run commands from the repository root:
 
 ```bash
 uv sync --project apps/agent --locked
-pnpm install --frozen-lockfile
+pnpm --dir apps/studio install --frozen-lockfile
 make ruff
 make studio
 ```
@@ -49,8 +49,11 @@ token-by-token generation.
 Frontend checks and build:
 
 ```bash
-pnpm lint:studio
-pnpm build:studio
+pnpm --dir apps/studio lint
+pnpm --dir apps/studio build
 ```
 
 See [backend notes](apps/agent/README.md) and [Studio notes](apps/studio/README.md).
+
+Each frontend manages its own package manifest, pnpm lockfile, and dependencies.
+There is no root pnpm workspace; `apps/web/` remains a placeholder.

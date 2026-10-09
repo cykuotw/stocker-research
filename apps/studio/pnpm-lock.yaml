@@ -6,9 +6,7 @@ settings:
 
 importers:
 
-  .: {}
-
-  apps/studio:
+  .:
     dependencies:
       '@langchain/core':
         specifier: ^1.2.14

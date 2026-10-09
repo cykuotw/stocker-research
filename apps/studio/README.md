@@ -8,7 +8,7 @@ local source changes present at import time. The upstream license is in
 From the repository root:
 
 ```bash
-pnpm install --frozen-lockfile
+pnpm --dir apps/studio install --frozen-lockfile
 make studio
 ```
 
@@ -17,5 +17,5 @@ running graph is required to chat. Custom graph visualization and state inspecti
 are not implemented. Dependency versions are preserved from the existing install.
 
 The upstream package-level pnpm overrides are retained, but pnpm 12 ignores them.
-The workspace lock preserves the previously installed resolutions; migrating
+The app-local lock preserves the previously installed resolutions; migrating
 those overrides belongs in a separate dependency update.
