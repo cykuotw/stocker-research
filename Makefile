@@ -11,5 +11,6 @@ test-agent:
 	uv run --project apps/agent pytest apps/agent/tests
 
 studio:
-	@echo "Agent Chat UI: http://localhost:3000 (use the Local URL below if the port changes)"
-	pnpm --dir apps/studio dev
+	pnpm --dir apps/studio build
+	@echo "Agent Chat UI: http://localhost:3000"
+	pnpm --dir apps/studio start

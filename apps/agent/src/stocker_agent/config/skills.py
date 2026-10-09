@@ -1,4 +1,4 @@
-"""Research skill settings read from process environment, without dotenv files."""
+"""Research skill settings from shared environment, dotenv and TOML sources."""
 
 from dataclasses import dataclass
 from pathlib import Path

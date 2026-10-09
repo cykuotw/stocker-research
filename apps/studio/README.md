@@ -12,6 +12,11 @@ pnpm --dir apps/studio install --frozen-lockfile
 make studio
 ```
 
+`make studio` runs `build` followed by `start` for local agent testing without
+the development compiler or hot reload. Every invocation rebuilds the UI.
+The default port is 3000 and must be available. For UI development, run
+`pnpm --dir apps/studio dev` instead.
+
 Enter the LangGraph server URL and graph ID in the setup screen. A compatible
 running graph is required to chat. Custom graph visualization and state inspection
 are not implemented. Dependency versions are preserved from the existing install.

@@ -1,11 +1,17 @@
-"""Shared TOML source with explicit non-secret field allowlists."""
+"""Shared environment, dotenv and TOML sources for application settings."""
 
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic_settings import BaseSettings, TomlConfigSettingsSource
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    TomlConfigSettingsSource,
+)
 
-SETTINGS_FILE = Path(__file__).resolve().parents[3] / "settings.toml"
+AGENT_DIRECTORY = Path(__file__).resolve().parents[3]
+SETTINGS_FILE = AGENT_DIRECTORY / "settings.toml"
+ENV_FILE: Path | None = AGENT_DIRECTORY / ".env"
 
 
 class FileSettings(BaseSettings):
@@ -35,6 +41,11 @@ class FileSettings(BaseSettings):
                 )
             return values
 
-        # Explicit arguments > environment > TOML > field defaults.
-        # No dotenv source: the launcher supplies process environment.
-        return init_settings, env_settings, file_source
+        local_env = DotEnvSettingsSource(
+            settings_cls,
+            env_file=ENV_FILE,
+            env_file_encoding="utf-8",
+            dotenv_filtering="only_existing",
+        )
+        # Explicit arguments > process environment > .env > TOML > defaults.
+        return init_settings, env_settings, local_env, file_source

@@ -1,6 +1,6 @@
 # Stocker Agent
 
-Python backend for Taiwan equity research. Includes a model-free echo graph for
+Python backend for Taiwan equity research. Includes a skill-driven echo graph for
 local testing; research workflows and data integrations are planned.
 
 From the repository root, run `make dev` or `make ruff`.
@@ -9,7 +9,7 @@ Use `uv sync --project apps/agent --locked` to install Python dependencies.
 
 Run `make dev` to start Agent Server at `http://localhost:2024` with graph ID
 `echo`. Send a chat message through Studio to receive `Echo: <your message>`.
-No API key is required. Keep application code under `src/stocker_agent/`.
+A `GOOGLE_API_KEY` in process environment or `apps/agent/.env` is required. Keep application code under `src/stocker_agent/`.
 
 ## Research skill configuration
 
@@ -18,7 +18,7 @@ Create it with `mkdir -p apps/agent/skills` from the repository root.
 Development-assistant skills are separate from these application skills.
 
 `SkillSettings` in `stocker_agent.config.skills` reads the `[skills]` section of
-`apps/agent/settings.toml` and process environment without loading dotenv files.
+`apps/agent/settings.toml`, `apps/agent/.env`, and process environment.
 
 Keep environment settings under `stocker_agent/config/`, grouped by concern.
 The future skill registry and storage loaders belong in separate application modules.
@@ -32,9 +32,8 @@ The future skill registry and storage loaders belong in separate application mod
 
 Relative local paths resolve from `apps/agent/`, independently of the working
 directory. Local and S3 skill loading and explicit in-process refresh are implemented.
-The manual refresh API and graph integration are not implemented yet. No refresh
-interval or automatic polling is planned. The echo graph does not use research
-skills. Production will supply these settings through deployment-managed env.
+The echo graph uses the registry; the manual refresh API is not implemented yet. No refresh
+interval or automatic polling is planned. The echo graph loads the `echo-agent` skill. Production will supply these settings through deployment-managed env.
 
 `make dev` disables LangSmith tracing. Future deployments must also keep
 `LANGSMITH_TRACING=false` and `LANGCHAIN_TRACING_V2=false`.
@@ -89,7 +88,7 @@ Gemini is the currently supported provider. `settings.toml` selects
 account availability and evaluate results before production use.
 Override IDs with `LLM_INSTANT_MODEL`, `LLM_STANDARD_MODEL`, and
 `LLM_COMPLEX_MODEL` when needed. Gemini requires `GOOGLE_API_KEY`.
-Keys are read from process environment; settings do not load dotenv files.
+The shared config layer reads keys from process environment or `apps/agent/.env`.
 Do not commit credentials or expose them in frontend variables.
 
 Optional settings: `LLM_TIMEOUT_SECONDS=60` and `LLM_MAX_RETRIES=2`.
@@ -99,23 +98,21 @@ nodes or agents; keep provider-specific model IDs out of graph code.
 
 Tool calling, structured output, reasoning and multimodal capabilities depend
 on the selected model. No automatic tier fallback or capability equivalence is
-implied. The echo graph remains deterministic; no live model call has been verified.
+implied. The echo graph uses the configured skill tier and console tool; no live model call has been verified.
 
 ## Settings and environment secrets
 
 Copy `.env.example` to `.env` in `apps/agent/` for a local template and fill in
-`GOOGLE_API_KEY` when using Gemini. Copying the file does not load its values:
-the current `make dev` command does not configure dotenv loading. Supply values
-through your launcher or process environment. The deterministic echo graph
-does not require a Gemini key. S3 variables are optional for local skill mode.
+`GOOGLE_API_KEY` when using Gemini. The shared config layer automatically reads
+this file when settings are created, including under `make dev`. The echo graph
+requires a Gemini key. S3 variables are optional for local skill mode.
 
 Edit `apps/agent/settings.toml` for model provider, tier model IDs, timeout/retries,
 and skill mode/local path. `[llm-models]` and `[skills]` map to the corresponding
 settings classes. Source priority is explicit constructor values, environment
-overrides, TOML, then defaults. File paths do not depend on the working directory.
+overrides, `.env`, TOML, then defaults. File paths do not depend on the working directory.
 
 Keep `GOOGLE_API_KEY`, `SKILL_S3_BUCKET`, and
-`SKILL_S3_PREFIX` in process environment (locally, these may be supplied by a
-launcher loading an ignored `.env`). These fields are rejected in settings.toml.
+`SKILL_S3_PREFIX` in process environment or the ignored `apps/agent/.env`. These fields are rejected in settings.toml.
 Changing settings requires a new settings/provider instance; no file watcher is
 implemented. Deployment packaging must include the non-secret settings file.
