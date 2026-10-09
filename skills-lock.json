@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "hashAlgorithm": "sha256",
+  "hashFormat": "sorted-relative-path-nul-content-nul",
+  "skills": {
+    "langchain-dependencies": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "ref": "16a992f09ab3ccfb642dd4f08d350d833d1990bf",
+      "skillPath": "config/skills/langchain-dependencies/SKILL.md",
+      "computedHash": "cbac5a533118dc96c9679048870deb5996c591a70f872a67cb4251cb32ff49d9"
+    },
+    "langchain-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "ref": "16a992f09ab3ccfb642dd4f08d350d833d1990bf",
+      "skillPath": "config/skills/langchain-fundamentals/SKILL.md",
+      "computedHash": "a85f0ad4bc5ee7ee3d996bfd2e770aaa4bbb2318b7cdb00bd65ce031c350e841"
+    },
+    "langgraph-cli": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "ref": "16a992f09ab3ccfb642dd4f08d350d833d1990bf",
+      "skillPath": "config/skills/langgraph-cli/SKILL.md",
+      "computedHash": "64148b39ca5f80f5e39a55f610e0e3aceb985aa384faafa3372eb037b5a7f6ad"
+    },
+    "langgraph-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "ref": "16a992f09ab3ccfb642dd4f08d350d833d1990bf",
+      "skillPath": "config/skills/langgraph-fundamentals/SKILL.md",
+      "computedHash": "1ade8fddd8530e989d6eacaf7d59576cdb85a77ad60657d2b8dc36d9b294ef08"
+    },
+    "modern-python": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "ref": "82fe8226252622fa807643bdca1710901198553a",
+      "skillPath": "plugins/modern-python/skills/modern-python/SKILL.md",
+      "computedHash": "7288a34e65b207eb11378b831c5e6afb037cf3a0ea2f696c9bae343e50774548"
+    },
+    "python-design-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "ref": "46891e7e60da0e52baf1050b7b6391b64e84c6d9",
+      "skillPath": "plugins/python-development/skills/python-design-patterns/SKILL.md",
+      "computedHash": "422cc8fd8cc7797bd5098e3a1b82b6ac33d358f8f9fb30e624716b99eafe85db"
+    },
+    "python-type-safety": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "ref": "46891e7e60da0e52baf1050b7b6391b64e84c6d9",
+      "skillPath": "plugins/python-development/skills/python-type-safety/SKILL.md",
+      "computedHash": "55807f16173aac544a28e8fba8d59a55b5e0ae89f0cd86f6961947f3ae0d81d6"
+    }
+  }
+}
