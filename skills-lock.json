@@ -3,6 +3,20 @@
   "hashAlgorithm": "sha256",
   "hashFormat": "sorted-relative-path-nul-content-nul",
   "skills": {
+    "fastapi": {
+      "source": "fastapi/fastapi",
+      "sourceType": "github",
+      "ref": "f5c6e9b4f9cadc1bf0f9a1fd672e621206b63007",
+      "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
+      "computedHash": "d3967bad5506c00e0f4ce4edf243b936c5c831c357ee7759071af5882846fb19"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "ref": "d631a8827f99414d2b6daba4ef08b7f8701751d7",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "99d60f302aecf9c5e91cc50d0e3c546bf54705807d4b59f7b6fe27fc2a6eb01c"
+    },
     "langchain-dependencies": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
@@ -51,6 +65,34 @@
       "ref": "46891e7e60da0e52baf1050b7b6391b64e84c6d9",
       "skillPath": "plugins/python-development/skills/python-type-safety/SKILL.md",
       "computedHash": "55807f16173aac544a28e8fba8d59a55b5e0ae89f0cd86f6961947f3ae0d81d6"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "ref": "2d3f1cd436b18ea12f24130de4df781355925b08",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "d5586e2bddda1d6b796683656efe1f4fc86371c1f427ef8eb331760d8a2885e5"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "ref": "c9be0e931b7930f7d02126d04774d904c381e7d7",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "a714d433362542f2d52e8b7958d1691c49fa4f43c9645c9a647895fb3ca85f92"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "ref": "063bee94c3f4df8453406c830b0a7df0f2860278",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "e3f2294574b469c7c198373a443a86571012769d0bbeed68854bd55642ec0d7b"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "ref": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "abfaf4cc6cf572346e22fed42dc0cfaacd2f64c5d9667f44a94b02ea0d3b1342"
     }
   }
 }
