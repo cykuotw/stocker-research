@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "echo": "./src/stocker_agent/graphs/echo.py:graph"
+  }
+}

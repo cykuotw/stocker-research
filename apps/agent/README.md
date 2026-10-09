@@ -1,10 +1,11 @@
 # Stocker Agent
 
-Python backend for Taiwan equity research. Currently a package scaffold; graph
-workflows and data integrations are planned.
+Python backend for Taiwan equity research. Includes a model-free echo graph for
+local testing; research workflows and data integrations are planned.
 
-From the repository root, run `make run` or `make ruff`.
+From the repository root, run `make dev` or `make ruff`.
 Use `uv sync --project apps/agent --locked` to install Python dependencies.
 
-Keep future application code under `src/stocker_agent/`. A graph and local
-`langgraph.json` are required before `make dev` can start Agent Server.
+Run `make dev` to start Agent Server at `http://localhost:2024` with graph ID
+`echo`. Send a chat message through Studio to receive `Echo: <your message>`.
+No API key is required. Keep application code under `src/stocker_agent/`.
