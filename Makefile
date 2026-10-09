@@ -1,11 +1,14 @@
-.PHONY: run dev ruff
+.PHONY: run dev ruff studio
 
 run:
-	uv run stocker-agent
+	uv run --project apps/agent stocker-agent
 
 dev:
-	uv run langgraph dev
+	cd apps/agent && uv run langgraph dev
 
 ruff:
-	uv run ruff check .
-	uv run ruff format --check .
+	uv run --project apps/agent ruff check apps/agent
+	uv run --project apps/agent ruff format --check apps/agent
+
+studio:
+	pnpm dev:studio

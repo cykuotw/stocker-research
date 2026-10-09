@@ -1,42 +1,49 @@
-# Stocker Agent
+# Stocker
 
-An AI research assistant for Taiwan equities, designed to combine financial data,
-company filings, and news into research reports with traceable evidence.
-The initial focus is company research and cyclical-bottom analysis.
-
-## Status
-
-This repository currently contains a minimal Python package scaffold. Research
-workflows, data integrations, and agent services are planned and not yet implemented.
+An AI research assistant for Taiwan equities, with company research and
+cyclical-bottom analysis as its initial focus. Research workflows and data
+integrations are planned; the backend currently runs a package scaffold.
 Automated trading is outside the initial scope.
 
-## Planned architecture
+## Layout
 
-- LangGraph workflows with bounded LangChain agents and reusable research skills.
-- Gemini models and Google Search grounding behind provider abstractions.
-- PostgreSQL for structured data and research artifacts; object storage for documents.
-- LangGraph Agent Server for execution, streaming, checkpoints, and human review.
+```text
+apps/
+  agent/    Python backend using LangGraph and LangChain
+  studio/   Agent Chat UI for development and debugging
+  web/      Reserved for the production frontend
+packages/   Reserved for shared frontend packages
+```
 
-## Quick start
+The planned backend uses Gemini, structured financial data, and traceable
+research evidence. The Studio currently provides the upstream chat interface;
+custom graph and state inspection panels have not been added.
 
-Requires Python 3.14+, `uv`, and `make`.
+## Development
+
+Requires Python 3.14+, `uv`, Node.js 22+, pnpm 12.10.1, and `make`.
+Run commands from the repository root:
 
 ```bash
+uv sync --project apps/agent --locked
+pnpm install --frozen-lockfile
 make run
-```
-
-The current command runs the scaffold's greeting; it does not perform research yet.
-
-To start the LangGraph development server once a graph and `langgraph.json` are configured:
-
-```bash
-make dev
-```
-
-This runs `uv run langgraph dev`.
-
-To check Python lint and formatting:
-
-```bash
 make ruff
+make studio
 ```
+
+`make run` prints the backend scaffold greeting. `make studio` starts the chat UI.
+Connect it to a running LangGraph server using the URL and graph ID in its setup
+screen. The UI needs a graph that supports chat messages.
+
+`make dev` starts the LangGraph development server from `apps/agent`, once a graph
+and `apps/agent/langgraph.json` have been implemented. Neither exists yet.
+
+Frontend checks and build:
+
+```bash
+pnpm lint:studio
+pnpm build:studio
+```
+
+See [backend notes](apps/agent/README.md) and [Studio notes](apps/studio/README.md).

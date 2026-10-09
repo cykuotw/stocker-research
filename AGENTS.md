@@ -15,7 +15,7 @@
 - For multi-step or cross-cutting implementation work, keep transient execution state in `.agents/tasks/active-plan.md` when task tracking exists; otherwise keep the plan in the conversation. Preserve unrelated active work.
 - Verify changes with appropriate checks. For documentation-only changes, check references, consistency, and the diff. For behavior changes, run relevant tests and affected build or lint checks.
 - Fix failures within scope and report any remaining failure or unavailable check with its cause and next step. Do not describe planned or unverified behavior as implemented or release-ready.
-- Use `uv` for repository Python tooling, including scripts, dependency management, and checks (for example, `uv run python ...`). Follow the Python requirement and dependencies in `pyproject.toml`.
+- Use `uv` for repository Python tooling, including scripts, dependency management, and checks (for example, `uv run python ...`). Follow the Python requirement and dependencies in `apps/agent/pyproject.toml`.
 - Keep implementation incremental. Prioritize the company-research vertical slice before expanding to industry research, comparison, supervisors, or an AG-UI frontend.
 
 ## Architecture
@@ -25,12 +25,12 @@
 - Keep routing and orchestration fields in a stable typed `ResearchState`. Store skill-specific temporary data under `skill_state`; adding a skill should not require changing global state or graph topology.
 - Nodes adapt graph state into explicit skill input schemas and map validated skill output schemas back into state. Skills must not directly read or mutate graph state keys.
 - Keep skills focused on methodology, domain knowledge, evidence requirements, and expected output. Keep runtime and LangGraph implementation details in Python code.
-- Use filesystem research skills under `skills/` initially, with `SKILL.md`, `manifest.yaml`, and optional `references/`. Keep their loader and registry implementation in the application package.
+- Use filesystem research skills under `apps/agent/skills/` initially, with `SKILL.md`, `manifest.yaml`, and optional `references/`. Keep their loader and registry implementation in the application package.
 - Skill manifests declare required tools and runtime metadata. Effective tools are the intersection of skill requirements, agent policy, and tools available in the environment. A skill cannot grant permissions.
 - Implement `ToolRegistry` as a Python runtime registry populated at application startup. Expose REST, MCP, database, and Python integrations through consistent tool interfaces with clear descriptions and input schemas.
 - Prefer deterministic Python strategies for screening, financial calculations, and scoring. Use LLMs for qualitative evidence, management commentary, contradictions, and synthesis.
 - Use provider abstractions for model tiers (`FAST`, `STANDARD`, `DEEP`) and web search. Gemini and Google Search grounding are the initial planned providers; do not hard-code provider choices throughout agents or skills.
-- Organize application modules within `src/stocker_agent/`, following the backlog's separation of graphs, agents, skill loading, tools, strategies, document processing, repositories, and model providers as they are implemented.
+- Organize application modules within `apps/agent/src/stocker_agent/`, following the backlog's separation of graphs, agents, skill loading, tools, strategies, document processing, repositories, and model providers as they are implemented.
 
 ## Data and research evidence
 
@@ -70,14 +70,15 @@
 ## Shared skills
 
 - Use an appropriate available development skill when the task matches its documented scope. Check `.agents/skills` before assuming a repo-local skill is missing.
-- Keep development-assistant skills under `.agents/skills` separate from the application's research skills under `skills/`.
+- Keep development-assistant skills under `.agents/skills` separate from the application's research skills under `apps/agent/skills/`.
 - Install shared workspace skills in `.agents/skills`, not a personal/global directory, and keep `skills-lock.json` synchronized when it exists.
 - Treat upstream skills as maintained dependencies. Do not edit, replace, update, or remove them or their lock entries without explicit authorization.
 - Apply skill guidance to this repository's actual stack. Examples from other projects do not redefine it or authorize adding a frontend or new infrastructure.
 - Choose skills by the changed concern: `python-design-patterns` for component boundaries and refactoring, `python-type-safety` for annotations and typed contracts, and `modern-python` for Python tooling, packaging, and scripts.
 - Use `langchain-dependencies` when selecting or updating LangChain/LangGraph packages, `langchain-fundamentals` for agents, tools, and structured output, `langgraph-fundamentals` for graph code, and `langgraph-cli` for CLI usage and `langgraph.json`.
 - Load only relevant skills and their Python references. Preserve this repository's Python requirement, `uv` workflow, graph-first design, and initial Gemini provider choice; provider and tooling examples are illustrative.
-- Installing a skill does not authorize installing its example dependencies, migrating tooling, adding Make targets, deploying, or launching subagents. The current Makefile exposes `make run` for the package entry point, `make dev` for the LangGraph development server, and `make ruff` for lint and formatting checks.
+- Installing a skill does not authorize installing its example dependencies, migrating tooling, adding Make targets, deploying, or launching subagents. The current Makefile exposes `make run` for the package entry point, `make dev` for the LangGraph development server, `make ruff` for Python lint and formatting checks, and `make studio` for the development chat UI.
+- Keep Python packaging and runtime configuration in `apps/agent/`. Run Python tooling from that directory or use `uv run --project apps/agent`. Manage frontend dependencies through the root pnpm workspace; `apps/studio/` is the development UI, `apps/web/` is reserved for the production frontend, and `packages/` is reserved for shared frontend packages.
 - Related skills mentioned by upstream documents may not be installed. Check availability and continue using the installed skill's bundled references; do not automatically install additional skills.
 - `skills-lock.json` records upstream repositories, immutable commit refs, skill paths, and directory hashes. Its `hashFormat` defines how to reproduce `computedHash`; preserve upstream skill content when updating the lock.
 - If a required dependency, CLI, or browser capability is unavailable, report the limitation and continue independent authorized work. Ask before installing or modifying anything outside scope.
