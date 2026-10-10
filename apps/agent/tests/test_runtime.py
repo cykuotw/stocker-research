@@ -11,9 +11,9 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.types import interrupt
 from pydantic import ValidationError
-from stocker_agent.app.factory import create_app
+from stocker_agent.app.core.factory import create_app
 from stocker_agent.app.models import RunInput
-from stocker_agent.app.serialization import public_data
+from stocker_agent.app.utils.serialization import public_data
 from stocker_agent.config.app import AppSettings
 
 
@@ -313,7 +313,7 @@ from stocker_agent.config import base
 base.ENV_FILE=None
 from test_runtime import recovery_graph
 from stocker_agent.config.app import AppSettings
-from stocker_agent.app.factory import create_app
+from stocker_agent.app.core.factory import create_app
 async def main():
     app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'crash':recovery_graph})
     async with app.router.lifespan_context(app):
@@ -474,7 +474,7 @@ from stocker_agent.config import base
 base.ENV_FILE=None
 from test_runtime import deterministic
 from stocker_agent.config.app import AppSettings
-from stocker_agent.app.factory import create_app
+from stocker_agent.app.core.factory import create_app
 app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'echo':deterministic})
 uvicorn.run(app,fd=int(os.environ['RUNTIME_TEST_LISTENER']),log_level='critical')
 """

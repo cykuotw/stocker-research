@@ -5,8 +5,9 @@ from time import monotonic
 from uuid import UUID
 
 from langgraph.types import Command
+from pydantic import JsonValue
 
-from stocker_agent.app.service import SessionService, state_view
+from stocker_agent.app.services.sessions import SessionService, state_view
 from stocker_agent.config.errors import MissingModelSetting
 
 
@@ -64,9 +65,7 @@ class GraphRunner:
                         raise
                 finally:
                     self.active = None
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 — execution boundary isolates arbitrary graph failures
+        except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             # A broken database/worker must fail readiness instead of silently stopping.
             self.failure = type(exc).__name__
 
@@ -76,9 +75,10 @@ class GraphRunner:
             if current["status"] != "running":
                 return
             graph, config = await self.service.graph(run["session_id"])
-            config["configurable"]["runtime_run_id"] = str(run["run_id"])
+            config.setdefault("configurable", {})["runtime_run_id"] = str(run["run_id"])
             body = run["request"]["submission"]
             action = run["action"]
+            value: Command | dict[str, JsonValue] | None
             if action == "resume":
                 value = Command(resume=body["resume"])
             elif action == "recover":
@@ -119,7 +119,7 @@ class GraphRunner:
                         duration = round((monotonic() - began) * 1000, 3)
                 metadata = event.get("metadata", {})
                 output = event.get("data", {}).get("output")
-                event["inspection"] = {
+                inspection = {
                     "node": metadata.get("langgraph_node"),
                     "model": metadata.get("ls_model_name"),
                     "skill": metadata.get("skill_id"),
@@ -129,7 +129,9 @@ class GraphRunner:
                     "duration_ms": duration,
                     "usage": getattr(output, "usage_metadata", None),
                 }
-                await self.repository.event(run, event["event"], event)
+                await self.repository.event(
+                    run, event["event"], {**event, "inspection": inspection}
+                )
             snapshot = await graph.aget_state(config)
             status = (
                 "interrupted"
@@ -146,9 +148,8 @@ class GraphRunner:
                 },
             )
             await self.repository.transition(run["run_id"], status)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 — execution boundary isolates arbitrary graph failures
+        except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            # Graph nodes may raise arbitrary exceptions; persist a failed run.
             error = {
                 "code": "graph_execution_failed",
                 "exception_type": type(exc).__name__,

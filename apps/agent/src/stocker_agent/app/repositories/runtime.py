@@ -9,10 +9,11 @@ from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
+from pydantic import JsonValue
 
-from stocker_agent.app.errors import RuntimeProblem
+from stocker_agent.app.core.errors import RuntimeProblem
 from stocker_agent.app.models import AssistantInput, RunInput, SessionInput
-from stocker_agent.app.serialization import public_data
+from stocker_agent.app.utils.serialization import public_data
 
 
 class RuntimeRepository:
@@ -29,7 +30,10 @@ class RuntimeRepository:
 
     async def list_assistants(self, after: UUID | None, limit: int) -> list[dict]:
         return await self._rows(
-            "SELECT * FROM runtime.assistants WHERE (%s::uuid IS NULL OR assistant_id>%s) ORDER BY assistant_id LIMIT %s",
+            (
+                "SELECT * FROM runtime.assistants WHERE (%s::uuid IS NULL OR "
+                "assistant_id>%s) ORDER BY assistant_id LIMIT %s"
+            ),
             (after, after, limit),
         )
 
@@ -40,7 +44,10 @@ class RuntimeRepository:
 
     async def list_sessions(self, after: UUID | None, limit: int) -> list[dict]:
         return await self._rows(
-            "SELECT * FROM runtime.sessions WHERE (%s::uuid IS NULL OR session_id>%s) ORDER BY session_id LIMIT %s",
+            (
+                "SELECT * FROM runtime.sessions WHERE (%s::uuid IS NULL OR "
+                "session_id>%s) ORDER BY session_id LIMIT %s"
+            ),
             (after, after, limit),
         )
 
@@ -51,13 +58,19 @@ class RuntimeRepository:
         self, session_id: UUID, after: UUID | None, limit: int
     ) -> list[dict]:
         return await self._rows(
-            "SELECT * FROM runtime.runs WHERE session_id=%s AND (%s::uuid IS NULL OR run_id>%s) ORDER BY run_id LIMIT %s",
+            (
+                "SELECT * FROM runtime.runs WHERE session_id=%s AND (%s::uuid IS NULL "
+                "OR run_id>%s) ORDER BY run_id LIMIT %s"
+            ),
             (session_id, after, after, limit),
         )
 
     async def run_events(self, run_id: UUID, after: int, limit: int) -> list[dict]:
         return await self._rows(
-            "SELECT * FROM runtime.events WHERE run_id=%s AND event_id>%s ORDER BY event_id LIMIT %s",
+            (
+                "SELECT * FROM runtime.events WHERE run_id=%s AND event_id>%s ORDER BY "
+                "event_id LIMIT %s"
+            ),
             (run_id, after, limit),
         )
 
@@ -65,12 +78,15 @@ class RuntimeRepository:
         self, session_id: UUID, after: int, limit: int
     ) -> list[dict]:
         return await self._rows(
-            "SELECT * FROM runtime.events WHERE session_id=%s AND event_id>%s ORDER BY event_id LIMIT %s",
+            (
+                "SELECT * FROM runtime.events WHERE session_id=%s AND event_id>%s "
+                "ORDER BY event_id LIMIT %s"
+            ),
             (session_id, after, limit),
         )
 
     async def migrate(self):
-        sql = (Path(__file__).parent / "migrations/001_runtime.sql").read_text()
+        sql = (Path(__file__).parents[1] / "migrations/001_runtime.sql").read_text()
         checksum = sha256(sql.encode()).hexdigest()
         async with self.pool.connection() as conn, conn.transaction():
             await conn.execute(SQL(cast(LiteralString, sql)), prepare=False)
@@ -82,7 +98,10 @@ class RuntimeRepository:
             if row and row["checksum"] != checksum:
                 raise RuntimeProblem("migration_checksum_mismatch", 500)
             await conn.execute(
-                "INSERT INTO runtime.schema_migrations(version,checksum) VALUES (1,%s) ON CONFLICT DO NOTHING",
+                (
+                    "INSERT INTO runtime.schema_migrations(version,checksum) VALUES (1,"
+                    "%s) ON CONFLICT DO NOTHING"
+                ),
                 (checksum,),
             )
 
@@ -98,7 +117,10 @@ class RuntimeRepository:
 
     async def assistant(self, body: AssistantInput) -> dict:
         return await self._one(
-            "INSERT INTO runtime.assistants(assistant_id,graph_id,name,config) VALUES (%s,%s,%s,%s) RETURNING *",
+            (
+                "INSERT INTO runtime.assistants(assistant_id,graph_id,name,config) "
+                "VALUES (%s,%s,%s,%s) RETURNING *"
+            ),
             (uuid4(), body.graph_id, body.name, Jsonb(body.config.model_dump())),
         )
 
@@ -108,7 +130,10 @@ class RuntimeRepository:
             (body.assistant_id,),
         )
         return await self._one(
-            "INSERT INTO runtime.sessions(session_id,assistant_id,graph_id,config,title) VALUES (%s,%s,%s,%s,%s) RETURNING *",
+            (
+                "INSERT INTO runtime.sessions(session_id,assistant_id,graph_id,config,"
+                "title) VALUES (%s,%s,%s,%s,%s) RETURNING *"
+            ),
             (
                 uuid4(),
                 body.assistant_id,
@@ -123,7 +148,10 @@ class RuntimeRepository:
         async with self.pool.connection() as conn, conn.transaction():
             session = await (
                 await conn.execute(
-                    "SELECT session_id FROM runtime.sessions WHERE session_id=%s FOR UPDATE",
+                    (
+                        "SELECT session_id FROM runtime.sessions WHERE session_id=%s "
+                        "FOR UPDATE"
+                    ),
                     (session_id,),
                 )
             ).fetchone()
@@ -131,7 +159,10 @@ class RuntimeRepository:
                 raise RuntimeProblem("not_found", 404)
             existing = await (
                 await conn.execute(
-                    "SELECT * FROM runtime.runs WHERE session_id=%s AND idempotency_key=%s",
+                    (
+                        "SELECT * FROM runtime.runs WHERE session_id=%s AND "
+                        "idempotency_key=%s"
+                    ),
                     (session_id, body.idempotency_key),
                 )
             ).fetchone()
@@ -141,7 +172,10 @@ class RuntimeRepository:
                 return existing
             latest = await (
                 await conn.execute(
-                    "SELECT * FROM runtime.runs WHERE session_id=%s ORDER BY created_at DESC,run_id DESC LIMIT 1",
+                    (
+                        "SELECT * FROM runtime.runs WHERE session_id=%s ORDER BY "
+                        "created_at DESC,run_id DESC LIMIT 1"
+                    ),
                     (session_id,),
                 )
             ).fetchone()
@@ -163,7 +197,7 @@ class RuntimeRepository:
                 "cancelled",
             ):
                 raise RuntimeProblem("resume_or_recover_required")
-            stored = {"submission": request}
+            stored: dict[str, JsonValue] = {"submission": request}
             if body.action == "recover":
                 assert latest is not None
                 stored["source_run_ids"] = [
@@ -175,7 +209,12 @@ class RuntimeRepository:
                 )
             row = await (
                 await conn.execute(
-                    "INSERT INTO runtime.runs(run_id,session_id,action,request,idempotency_key,status,created_at,updated_at) VALUES (%s,%s,%s,%s,%s,'pending',clock_timestamp(),clock_timestamp()) RETURNING *",
+                    (
+                        "INSERT INTO runtime.runs(run_id,session_id,action,request,"
+                        "idempotency_key,status,created_at,updated_at) VALUES (%s,%s,"
+                        "%s,%s,%s,'pending',clock_timestamp(),clock_timestamp()) "
+                        "RETURNING *"
+                    ),
                     (
                         uuid4(),
                         session_id,
@@ -197,7 +236,10 @@ class RuntimeRepository:
         payload: object,
     ):
         await conn.execute(
-            "INSERT INTO runtime.events(session_id,run_id,kind,payload) VALUES (%s,%s,%s,%s)",
+            (
+                "INSERT INTO runtime.events(session_id,run_id,kind,payload) VALUES (%s,"
+                "%s,%s,%s)"
+            ),
             (run["session_id"], run["run_id"], kind, Jsonb(public_data(payload))),
         )
 
@@ -227,7 +269,10 @@ class RuntimeRepository:
                 return row
             row = await (
                 await conn.execute(
-                    "UPDATE runtime.runs SET status=%s,error=%s,updated_at=clock_timestamp() WHERE run_id=%s RETURNING *",
+                    (
+                        "UPDATE runtime.runs SET status=%s,error=%s,"
+                        "updated_at=clock_timestamp() WHERE run_id=%s RETURNING *"
+                    ),
                     (status, Jsonb(error) if error else None, run_id),
                 )
             ).fetchone()
@@ -247,13 +292,17 @@ class RuntimeRepository:
         async with self.pool.connection() as conn, conn.transaction():
             row = await (
                 await conn.execute(
-                    "SELECT * FROM runtime.runs WHERE status='pending' ORDER BY created_at,run_id LIMIT 1 FOR UPDATE SKIP LOCKED"
+                    "SELECT * FROM runtime.runs WHERE status='pending' ORDER BY "
+                    "created_at,run_id LIMIT 1 FOR UPDATE SKIP LOCKED"
                 )
             ).fetchone()
             if row:
                 row = await (
                     await conn.execute(
-                        "UPDATE runtime.runs SET status='running',updated_at=clock_timestamp() WHERE run_id=%s RETURNING *",
+                        (
+                            "UPDATE runtime.runs SET status='running',"
+                            "updated_at=clock_timestamp() WHERE run_id=%s RETURNING *"
+                        ),
                         (row["run_id"],),
                     )
                 ).fetchone()

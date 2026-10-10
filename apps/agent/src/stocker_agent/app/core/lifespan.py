@@ -13,11 +13,11 @@ from psycopg import AsyncConnection, Error
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from stocker_agent.app.context import AppContext
-from stocker_agent.app.errors import RuntimeProblem
-from stocker_agent.app.repository import RuntimeRepository
-from stocker_agent.app.runner import GraphRunner
-from stocker_agent.app.service import SessionService
+from stocker_agent.app.core.context import AppContext
+from stocker_agent.app.core.errors import RuntimeProblem
+from stocker_agent.app.repositories.runtime import RuntimeRepository
+from stocker_agent.app.services.runner import GraphRunner
+from stocker_agent.app.services.sessions import SessionService
 from stocker_agent.config.app import AppSettings
 
 GraphFactory = Callable[[AsyncPostgresSaver], CompiledStateGraph]

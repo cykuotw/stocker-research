@@ -8,10 +8,10 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from stocker_agent.app.context import AppContext
+from stocker_agent.app.core.context import AppContext
+from stocker_agent.app.core.errors import RuntimeProblem
+from stocker_agent.app.core.factory import create_app
 from stocker_agent.app.dependencies import get_context, get_runner, get_service
-from stocker_agent.app.errors import RuntimeProblem
-from stocker_agent.app.factory import create_app
 from stocker_agent.app.models import Run, RuntimeEvent
 from stocker_agent.config.app import AppSettings
 
@@ -140,7 +140,7 @@ def test_missing_credentials_fail_startup_not_assembly(monkeypatch):
 
 
 def test_lifespan_shares_settings_and_stops_worker_before_pools(monkeypatch):
-    from stocker_agent.app import lifespan as lifecycle
+    from stocker_agent.app.core import lifespan as lifecycle
 
     order = []
     config = AppSettings(database_uri="postgresql://localhost/stocker_agent_runtime")

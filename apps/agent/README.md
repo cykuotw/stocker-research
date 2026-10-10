@@ -47,15 +47,16 @@ out of TOML and browser configuration. Restart after changing configuration.
 `src/stocker_agent/server.py` is the FastAPI entrypoint (`app = create_app()`).
 The `app/` package separates application assembly, resources, and HTTP transport:
 
-- `factory.py`: one settings snapshot, CORS, errors, routers, and optional static UI.
-- `lifespan.py`: eager PostgreSQL/checkpointer/graph startup, worker ownership,
-  recovery, and shutdown. The worker stops before database pools close.
-- `context.py` and `dependencies.py`: typed application resources and reusable
-  `Annotated[..., Depends(...)]` accessors.
+- `core/`: application factory, resource context, errors, and eager lifespan
+  startup/recovery/shutdown. The worker stops before database pools close.
+- `dependencies/`: reusable `Annotated[..., Depends(...)]` accessors.
 - `routers/`: system, assistants/sessions, runs, and inspection/SSE endpoints.
-- `service.py`: session/run operations and checkpoint/event queries.
-- `runner.py`: durable graph execution, cancellation, and recovery.
-- `repository.py`: parameterized SQL, transactions, and runtime migrations.
+- `services/`: session/run operations, checkpoint/event queries, and durable
+  graph execution, cancellation, and recovery.
+- `repositories/`: parameterized SQL and transactions; `migrations/` retains
+  runtime migration resources.
+- `models/`: graph, assistant, session, run, event, and checkpoint HTTP models.
+- `utils/`: public-data serialization and redaction.
 
 Resources are created once per application lifespan. HTTP dependencies retrieve
 those resources; services and the worker use constructor injection. Tests can

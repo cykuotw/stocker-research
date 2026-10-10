@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from stocker_agent.config import base
 from stocker_agent.config.llm import ModelSettings
 from stocker_agent.config.skills import SkillSettings

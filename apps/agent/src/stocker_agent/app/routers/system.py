@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from stocker_agent.app.core.errors import RuntimeProblem
 from stocker_agent.app.dependencies import Runner, Service
-from stocker_agent.app.errors import RuntimeProblem
 
 Limit = Annotated[int, Query(ge=1, le=200)]
 After = Annotated[int, Query(ge=0)]

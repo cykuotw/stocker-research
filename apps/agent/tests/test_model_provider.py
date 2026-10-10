@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from pydantic import SecretStr, ValidationError
-
 from stocker_agent.config.llm import ModelSettings, ModelTier
 from stocker_agent.llm import ModelProvider
 from stocker_agent.skills.registry import SkillManifest
@@ -84,7 +83,7 @@ async def test_missing_model_config_is_persisted_as_safe_actionable_error():
     from unittest.mock import AsyncMock, Mock
     from uuid import uuid4
 
-    from stocker_agent.app.runner import GraphRunner
+    from stocker_agent.app.services.runner import GraphRunner
     from stocker_agent.config.errors import MissingModelSetting
 
     missing = MissingModelSetting("GOOGLE_API_KEY")

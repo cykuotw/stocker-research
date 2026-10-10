@@ -9,9 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.types import Lifespan
 
-from stocker_agent.app.errors import RuntimeProblem
-from stocker_agent.app.lifespan import GraphFactory
-from stocker_agent.app.lifespan import lifespan as runtime_lifespan
+from stocker_agent.app.core.errors import RuntimeProblem
+from stocker_agent.app.core.lifespan import GraphFactory
+from stocker_agent.app.core.lifespan import lifespan as runtime_lifespan
 from stocker_agent.app.routers import inspection, runs, sessions, system
 from stocker_agent.config.app import AppSettings
 

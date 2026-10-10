@@ -4,10 +4,11 @@ import asyncio
 from collections.abc import AsyncIterator
 from uuid import UUID
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import StateSnapshot
 
-from stocker_agent.app.errors import RuntimeProblem
+from stocker_agent.app.core.errors import RuntimeProblem
 from stocker_agent.app.models import (
     TERMINAL_STATUSES,
     Assistant,
@@ -20,8 +21,8 @@ from stocker_agent.app.models import (
     SessionInput,
     StateView,
 )
-from stocker_agent.app.repository import RuntimeRepository
-from stocker_agent.app.serialization import public_data
+from stocker_agent.app.repositories.runtime import RuntimeRepository
+from stocker_agent.app.utils.serialization import public_data
 
 
 def state_view(snapshot: StateSnapshot) -> StateView:
@@ -47,11 +48,14 @@ class SessionService:
         self.repository = repository
         self.graphs = graphs
 
-    async def graph(self, session_id: UUID):
+    async def graph(
+        self, session_id: UUID
+    ) -> tuple[CompiledStateGraph, RunnableConfig]:
         session = await self.repository.get_session(session_id)
         if session["graph_id"] not in self.graphs:
             raise RuntimeProblem("graph_unavailable", 409)
-        config = {"configurable": {"thread_id": str(session_id)}, **session["config"]}
+        config = RunnableConfig(configurable={"thread_id": str(session_id)})
+        config.update(session["config"])
         return self.graphs[session["graph_id"]], config
 
     async def state(
@@ -59,7 +63,10 @@ class SessionService:
     ) -> StateView:
         graph, config = await self.graph(session_id)
         if checkpoint_id:
-            config["configurable"]["checkpoint_id"] = checkpoint_id
+            config["configurable"] = {
+                **config.get("configurable", {}),
+                "checkpoint_id": checkpoint_id,
+            }
         snapshot = await graph.aget_state(config)
         if checkpoint_id and not snapshot.created_at:
             raise RuntimeProblem("checkpoint_not_found", 404)
@@ -69,12 +76,15 @@ class SessionService:
         self, session_id: UUID, before: str | None, limit: int
     ) -> list[StateView]:
         graph, config = await self.graph(session_id)
-        cursor = None
+        cursor: RunnableConfig | None = None
         if before:
             await self.state(session_id, before)
-            cursor = {
-                "configurable": {**config["configurable"], "checkpoint_id": before}
-            }
+            cursor = RunnableConfig(
+                configurable={
+                    **config.get("configurable", {}),
+                    "checkpoint_id": before,
+                }
+            )
         return [
             state_view(snapshot)
             async for snapshot in graph.aget_state_history(
