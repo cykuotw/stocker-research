@@ -7,6 +7,7 @@ import pytest
 from graph_fixtures import build_test_resources
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
 from stocker_agent.config.llm import ModelSettings, ModelTier
 from stocker_agent.graphs.echo import build_echo_graph
 from stocker_agent.llm import ModelRouter
@@ -122,3 +123,44 @@ async def test_complex_tier_routes_through_openrouter_and_calls_tools(capsys):
     assert isinstance(result["messages"][2], ToolMessage)
     assert result["messages"][-1].content == "Echo: hello"
     assert create.call_args.kwargs["model"] == "test-opus"
+
+
+@pytest.mark.asyncio
+async def test_echo_two_turns_preserve_checkpoint_history(capsys):
+    responses = []
+    for message in ("one", "two"):
+        responses.extend(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "print_user_message",
+                            "args": {"message": message},
+                            "id": f"tool-{message}",
+                            "type": "tool_call",
+                        }
+                    ],
+                ),
+                AIMessage(content=f"Echo: {message}"),
+            ]
+        )
+    models = Mock(get=Mock(return_value=ToolCallingModel(responses=responses)))
+    graph = build_echo_graph(
+        build_test_resources(
+            InMemorySaver(),
+            skills=Mock(get=Mock(return_value=sample_skill())),
+            models=models,
+        )
+    )
+    config = {"configurable": {"thread_id": "two-turns"}}
+    await graph.ainvoke({"messages": [HumanMessage(content="one")]}, config)
+    result = await graph.ainvoke({"messages": [HumanMessage(content="two")]}, config)
+    assert capsys.readouterr().out == "one\ntwo\n"
+    assert len(result["messages"]) == 8
+    assert [
+        message.content
+        for message in result["messages"]
+        if isinstance(message, HumanMessage)
+    ] == ["one", "two"]
+    assert result["messages"][-1].content == "Echo: two"

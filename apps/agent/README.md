@@ -124,6 +124,15 @@ The second entry illustrates a future workflow; only `echo` is currently
 registered. Compile with `resources.checkpointer` and reuse `resources.models`,
 `resources.skills`, and `resources.tools`. Available tools remain subject to each
 graph's policy and the skill manifest. Model clients are initialized on use.
+Agent policies live in `agent_runtime/definitions.py`, separate from workflow topology.
+`AgentFactory` validates skill status and `allowed_agents`, resolves tools through
+`tools/resolver.py`, selects the skill's model tier, and builds a LangChain agent.
+Only required tools that are both authorized and registered are exposed; missing
+or disallowed requirements fail before model construction. Skills cannot grant
+permissions. `SkillAgent` preserves request configuration and adds agent/skill
+metadata and the definition's recursion limit. Graph nodes retain input/output
+adapters; reusable agents do not read or mutate workflow state directly. The
+echo node uses `ECHO_AGENT` and keeps its conversation-delta conversion locally.
 Tests can override `graph_factories` and `graph_resources_factory` in `create_app`
 to inject deterministic graphs/resources without loading local skills or models.
 
