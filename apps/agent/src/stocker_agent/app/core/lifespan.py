@@ -6,10 +6,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import Error
 
 from stocker_agent.app.core.context import AppContext
+from stocker_agent.app.database.checkpoints import setup_checkpoints
 from stocker_agent.app.database.factory import DatabaseFactory
 from stocker_agent.app.repositories.runtime import RuntimeRepository
 from stocker_agent.app.services.runner import GraphRunner
@@ -31,9 +31,8 @@ async def lifespan(
     os.environ["LANGCHAIN_TRACING_V2"] = "false"
     async with DatabaseFactory().open(config) as database:
         repository = RuntimeRepository(database.engine)
-        await repository.migrate()
-        saver = AsyncPostgresSaver(database.checkpoint_pool)
-        await saver.setup()
+        await repository.migrate(config.migration_timeout_seconds)
+        saver = await setup_checkpoints(database, config)
         resource_factory = graph_resources_factory or GraphResources.from_settings
         resources = resource_factory(saver)
         registry = GraphRegistry(
@@ -55,7 +54,7 @@ async def lifespan(
                     await database.owner.execute("SELECT 1")
             except Error:
                 runner.failure = "ownership_connection_lost"
-                await runner.stop()
+                await asyncio.wait_for(runner.stop(), config.shutdown_timeout_seconds)
 
         ownership_watch = asyncio.create_task(watch_ownership())
         try:
@@ -64,7 +63,9 @@ async def lifespan(
             app.state.context = None
             ownership_watch.cancel()
             try:
-                await ownership_watch
-            except asyncio.CancelledError:
-                pass
-            await runner.stop()
+                try:
+                    await ownership_watch
+                except asyncio.CancelledError:
+                    pass
+            finally:
+                await asyncio.wait_for(runner.stop(), config.shutdown_timeout_seconds)

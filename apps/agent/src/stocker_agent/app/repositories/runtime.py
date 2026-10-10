@@ -81,8 +81,13 @@ class RuntimeRepository:
             .limit(limit)
         )
 
-    async def migrate(self):
+    async def migrate(self, timeout_seconds: float = 120):
         async with self.engine.begin() as conn:
+            await conn.execute(
+                select(
+                    func.set_config("statement_timeout", f"{timeout_seconds}s", True)
+                )
+            )
             await migrate_runtime(conn)
 
     async def _rows(self, statement: Executable) -> list[dict]:

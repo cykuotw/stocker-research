@@ -13,7 +13,19 @@ from stocker_agent.config.base import AGENT_DIRECTORY, FileSettings
 class AppOptions(FileSettings):
     settings_section = "app"
     file_fields = frozenset(
-        {"cors_origins", "static_directory", "poll_seconds", "max_pool_size"}
+        {
+            "cors_origins",
+            "static_directory",
+            "poll_seconds",
+            "runtime_pool_size",
+            "checkpoint_pool_size",
+            "connect_timeout_seconds",
+            "pool_timeout_seconds",
+            "statement_timeout_seconds",
+            "lock_timeout_seconds",
+            "migration_timeout_seconds",
+            "shutdown_timeout_seconds",
+        }
     )
     model_config = SettingsConfigDict(
         env_prefix="APP_",
@@ -28,7 +40,14 @@ class AppOptions(FileSettings):
     )
     static_directory: Path | None = None
     poll_seconds: float = Field(default=0.2, gt=0, le=10)
-    max_pool_size: int = Field(default=5, ge=2, le=20)
+    runtime_pool_size: int = Field(default=5, ge=1, le=20)
+    checkpoint_pool_size: int = Field(default=5, ge=1, le=20)
+    connect_timeout_seconds: int = Field(default=5, ge=2, le=60)
+    pool_timeout_seconds: float = Field(default=5, gt=0, le=120)
+    statement_timeout_seconds: float = Field(default=30, gt=0, le=600)
+    lock_timeout_seconds: float = Field(default=5, gt=0, le=120)
+    migration_timeout_seconds: float = Field(default=120, gt=0, le=1800)
+    shutdown_timeout_seconds: float = Field(default=10, gt=0, le=120)
 
     @model_validator(mode="after")
     def resolve_static(self):
@@ -66,7 +85,10 @@ class AppSettings(AppOptions):
 
     def conninfo(self) -> str:
         if self.database_uri:
-            return self.database_uri.get_secret_value()
+            return make_conninfo(
+                self.database_uri.get_secret_value(),
+                connect_timeout=self.connect_timeout_seconds,
+            )
         if not self.db_password:
             raise ValueError("Set DB_PASSWORD or DATABASE_URI in environment or .env")
         return make_conninfo(
@@ -75,5 +97,5 @@ class AppSettings(AppOptions):
             user=self.db_user,
             password=self.db_password.get_secret_value() if self.db_password else "",
             dbname=self.db_name,
-            connect_timeout=5,
+            connect_timeout=self.connect_timeout_seconds,
         )

@@ -87,7 +87,9 @@ def test_app_uses_shared_sources(monkeypatch, tmp_path: Path) -> None:
     config = tmp_path / "settings.toml"
     config.write_text("""[app]
 poll_seconds = 0.5
-max_pool_size = 8
+runtime_pool_size = 8
+checkpoint_pool_size = 3
+pool_timeout_seconds = 2
 cors_origins = ["http://localhost:5173"]
 [llm-models.standard]
 model = "toml-model"
@@ -117,7 +119,9 @@ UNRELATED_SETTING=ignored
         "DB_PASSWORD",
         "DB_NAME",
         "APP_POLL_SECONDS",
-        "APP_MAX_POOL_SIZE",
+        "APP_RUNTIME_POOL_SIZE",
+        "APP_CHECKPOINT_POOL_SIZE",
+        "APP_POOL_TIMEOUT_SECONDS",
         "APP_CORS_ORIGINS",
         "GOOGLE_API_KEY",
         "LLM_STANDARD__MODEL",
@@ -130,7 +134,9 @@ UNRELATED_SETTING=ignored
     assert settings.db_port == 5544
     assert settings.db_password.get_secret_value() == "fixture-password"
     assert settings.poll_seconds == 0.25
-    assert settings.max_pool_size == 8
+    assert settings.runtime_pool_size == 8
+    assert settings.checkpoint_pool_size == 3
+    assert settings.pool_timeout_seconds == 2
     assert settings.cors_origins == ["http://localhost:5173"]
     assert ModelSettings().standard.model == "dotenv-model"
     assert ModelSettings().google_api_key.get_secret_value() == "fixture-model-key"

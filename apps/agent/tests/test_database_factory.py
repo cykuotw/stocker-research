@@ -43,7 +43,10 @@ async def test_factory_closes_pool_engine_owner_in_order(monkeypatch, fail_open)
             return cls
 
         def __init__(self, *args, **kwargs):
-            pass
+            assert kwargs["max_size"] == 3
+            assert kwargs["timeout"] == 0.5
+            assert "statement_timeout=2000" in kwargs["kwargs"]["options"]
+            assert "lock_timeout=100" in kwargs["kwargs"]["options"]
 
         async def __aenter__(self):
             return self
@@ -51,12 +54,20 @@ async def test_factory_closes_pool_engine_owner_in_order(monkeypatch, fail_open)
         async def __aexit__(self, *args):
             order.append("pool")
 
-        async def wait(self):
+        async def wait(self, timeout):
+            assert timeout == 0.5
             if fail_open:
                 raise RuntimeError("fixture startup failure")
 
     monkeypatch.setattr(module, "AsyncConnectionPool", Pool)
-    settings = AppSettings(database_uri="postgresql://localhost/stocker_agent_runtime")
+    settings = AppSettings(
+        database_uri="postgresql://localhost/stocker_agent_runtime",
+        runtime_pool_size=2,
+        checkpoint_pool_size=3,
+        pool_timeout_seconds=0.5,
+        statement_timeout_seconds=2,
+        lock_timeout_seconds=0.1,
+    )
     if fail_open:
         with pytest.raises(RuntimeError, match="fixture startup"):
             async with module.DatabaseFactory().open(settings):
@@ -68,6 +79,8 @@ async def test_factory_closes_pool_engine_owner_in_order(monkeypatch, fail_open)
     assert order == ["pool", "engine", "owner"]
     assert create_engine.call_args.kwargs["hide_parameters"] is True
     assert create_engine.call_args.kwargs["max_overflow"] == 0
+    assert create_engine.call_args.kwargs["pool_size"] == 2
+    assert create_engine.call_args.kwargs["pool_timeout"] == 0.5
 
 
 def test_sqlalchemy_keeps_sql_like_input_in_bound_parameters():

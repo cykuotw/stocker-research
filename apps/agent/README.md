@@ -71,6 +71,32 @@ per application lifespan. Operations borrow connections from their pool; no
 single connection is shared across concurrent transactions. The worker stops
 before database resources close, including when startup fails.
 
+Configure database limits under `[app]` in `settings.toml`:
+
+```toml
+runtime_pool_size = 5
+checkpoint_pool_size = 5
+connect_timeout_seconds = 5
+pool_timeout_seconds = 5
+statement_timeout_seconds = 30
+lock_timeout_seconds = 5
+migration_timeout_seconds = 120
+shutdown_timeout_seconds = 10
+```
+
+Each setting can be overridden through `APP_<UPPERCASE_NAME>` in the process
+environment or `.env`. Replace the former `max_pool_size` / `APP_MAX_POOL_SIZE`
+with the two pool-size settings. The connection ceiling per server is
+`runtime_pool_size + checkpoint_pool_size + 1` for ownership (11 by default).
+There is no runtime pool overflow. Connection timeout also applies when using
+`DATABASE_URI`; pool timeout bounds acquisition and checkpoint-pool startup.
+Query and lock timeouts apply to new connections in both pools. Migration setup
+temporarily uses the migration statement timeout and retains the lock timeout;
+normal query settings are restored afterward. These are per-statement limits,
+not a deadline for the whole graph or migration sequence. Shutdown bounds the
+worker-stop wait; if it times out, shutdown reports an error and unfinished runs
+are handled by startup recovery. Python cancellation must remain cooperative.
+
 Runtime queries use SQLAlchemy Core expressions for selects, inserts, updates,
 pagination, row locks, and `SKIP LOCKED`. Values remain bound parameters.
 LangGraph continues using its supported psycopg checkpointer. The existing

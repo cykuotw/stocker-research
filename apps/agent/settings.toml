@@ -25,4 +25,11 @@ local_path = "./skills"
 [app]
 cors_origins = ["http://localhost:3000", "http://localhost:5173"]
 poll_seconds = 0.2
-max_pool_size = 5
+runtime_pool_size = 5
+checkpoint_pool_size = 5
+connect_timeout_seconds = 5
+pool_timeout_seconds = 5
+statement_timeout_seconds = 30
+lock_timeout_seconds = 5
+migration_timeout_seconds = 120
+shutdown_timeout_seconds = 10

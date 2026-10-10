@@ -1,6 +1,7 @@
 """HTTP injection and resource lifecycle tests without credentials or model calls."""
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, nullcontext
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -141,11 +142,17 @@ def test_missing_credentials_fail_startup_not_assembly(monkeypatch):
         pass
 
 
-def test_lifespan_shares_settings_and_stops_worker_before_pools(monkeypatch):
+@pytest.mark.parametrize("stall_stop", [False, True])
+def test_lifespan_shares_settings_and_stops_worker_before_pools(
+    monkeypatch, stall_stop
+):
     from stocker_agent.app.core import lifespan as lifecycle
 
     order = []
-    config = AppSettings(database_uri="postgresql://localhost/stocker_agent_runtime")
+    config = AppSettings(
+        database_uri="postgresql://localhost/stocker_agent_runtime",
+        shutdown_timeout_seconds=0.02,
+    )
     database = SimpleNamespace(
         engine=Mock(),
         checkpoint_pool=Mock(),
@@ -155,28 +162,37 @@ def test_lifespan_shares_settings_and_stops_worker_before_pools(monkeypatch):
     @asynccontextmanager
     async def open_database(settings):
         assert settings is config
-        yield database
-        order.append("database_closed")
+        try:
+            yield database
+        finally:
+            order.append("database_closed")
 
     repository = Mock(migrate=AsyncMock(), recover_abandoned=AsyncMock())
     saver = Mock(setup=AsyncMock())
-    runner = Mock(
-        start=Mock(), stop=AsyncMock(side_effect=lambda: order.append("worker_stopped"))
-    )
+
+    async def stop_worker():
+        try:
+            if stall_stop:
+                await asyncio.sleep(5)
+        finally:
+            order.append("worker_stopped")
+
+    runner = Mock(start=Mock(), stop=AsyncMock(side_effect=stop_worker))
     monkeypatch.setattr(lifecycle, "DatabaseFactory", lambda: Mock(open=open_database))
     monkeypatch.setattr(lifecycle, "RuntimeRepository", lambda engine: repository)
-    monkeypatch.setattr(lifecycle, "AsyncPostgresSaver", lambda pool: saver)
+    monkeypatch.setattr(lifecycle, "setup_checkpoints", AsyncMock(return_value=saver))
     monkeypatch.setattr(lifecycle, "GraphRunner", lambda service, poll: runner)
     factory = Mock(return_value=Mock(spec=CompiledStateGraph))
     app = create_app(
         config, {"echo": factory}, graph_resources_factory=build_test_resources
     )
-    with TestClient(app):
+    with pytest.raises(TimeoutError) if stall_stop else nullcontext(), TestClient(app):
         assert app.state.context.settings is config
         assert app.state.context.runner is runner
         assert app.state.context.ownership_pid == 123
         runner.start.assert_called_once()
         repository.recover_abandoned.assert_awaited_once()
+        repository.migrate.assert_awaited_once_with(config.migration_timeout_seconds)
         factory.assert_called_once()
         assert factory.call_args.args[0].checkpointer is saver
     assert app.state.context is None
