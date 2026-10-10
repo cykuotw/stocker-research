@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from stocker_agent.config import base
 from stocker_agent.config.llm import ModelSettings
 from stocker_agent.config.skills import SkillSettings
@@ -78,3 +79,103 @@ def test_sensitive_fields_are_rejected_in_file(
     monkeypatch.setattr(base, "SETTINGS_FILE", file)
     with pytest.raises(ValueError, match="Unsupported fields"):
         settings()
+
+
+def test_app_uses_shared_sources(monkeypatch, tmp_path: Path) -> None:
+    from stocker_agent.config.app import AppSettings
+
+    config = tmp_path / "settings.toml"
+    config.write_text("""[app]
+poll_seconds = 0.5
+max_pool_size = 8
+cors_origins = ["http://localhost:5173"]
+[llm-models]
+standard_model = "toml-model"
+[skills]
+mode = "local"
+""")
+    environment = tmp_path / "app-settings-test.env"
+    environment.write_text("""DB_HOST=database-test
+DB_PORT=5544
+DB_USER=app-test
+DB_PASSWORD=fixture-password
+DB_NAME=stocker_agent_runtime
+APP_POLL_SECONDS=0.25
+GOOGLE_API_KEY=fixture-model-key
+LLM_STANDARD_MODEL=dotenv-model
+SKILL_LOCAL_PATH=./test-skills
+UNRELATED_SETTING=ignored
+""")
+    monkeypatch.setattr(base, "SETTINGS_FILE", config)
+    monkeypatch.setattr(base, "ENV_FILE", environment)
+    for key in (
+        "DATABASE_URI",
+        "DB_HOST",
+        "DB_PUBLIC_HOST",
+        "DB_PORT",
+        "DB_USER",
+        "DB_PASSWORD",
+        "DB_NAME",
+        "APP_POLL_SECONDS",
+        "APP_MAX_POOL_SIZE",
+        "APP_CORS_ORIGINS",
+        "GOOGLE_API_KEY",
+        "LLM_STANDARD_MODEL",
+        "SKILL_LOCAL_PATH",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.chdir(tmp_path.parent)
+    settings = AppSettings()
+    assert settings.db_host == "database-test"
+    assert settings.db_port == 5544
+    assert settings.db_password.get_secret_value() == "fixture-password"
+    assert settings.poll_seconds == 0.25
+    assert settings.max_pool_size == 8
+    assert settings.cors_origins == ["http://localhost:5173"]
+    assert ModelSettings().standard_model == "dotenv-model"
+    assert ModelSettings().google_api_key.get_secret_value() == "fixture-model-key"
+    assert SkillSettings().local_path == "./test-skills"
+    monkeypatch.setenv("DB_PORT", "6655")
+    monkeypatch.setenv("APP_POLL_SECONDS", "0.1")
+    assert AppSettings().db_port == 6655
+    assert AppSettings().poll_seconds == 0.1
+    assert AppSettings(db_port=7766, poll_seconds=0.05).db_port == 7766
+    assert AppSettings(db_port=7766, poll_seconds=0.05).poll_seconds == 0.05
+
+
+def test_app_rejects_credentials_in_toml(monkeypatch, tmp_path):
+    from stocker_agent.config.app import AppSettings
+
+    config = tmp_path / "settings.toml"
+    config.write_text('[app]\ndb_password="not-allowed"\n')
+    monkeypatch.setattr(base, "SETTINGS_FILE", config)
+    with pytest.raises(ValueError, match="Unsupported fields"):
+        AppSettings()
+
+
+def test_dotenv_uses_base_file_and_process_precedence(monkeypatch, tmp_path):
+    from stocker_agent.config.app import AppSettings
+
+    env = tmp_path / "base-test.env"
+    env.write_text(
+        "GOOGLE_API_KEY=fixture-key\nLLM_STANDARD_MODEL=base-model\nDB_USER=app-user\nDB_PASSWORD=fixture-password\n"
+    )
+    monkeypatch.setattr(base, "ENV_FILE", env)
+    for name in (
+        "GOOGLE_API_KEY",
+        "LLM_STANDARD_MODEL",
+        "DB_USER",
+        "DB_PASSWORD",
+        "DATABASE_URI",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.chdir(tmp_path.parent)
+    assert ModelSettings().google_api_key.get_secret_value() == "fixture-key"
+    assert ModelSettings().standard_model == "base-model"
+    assert AppSettings().db_user == "app-user"
+    monkeypatch.setenv("LLM_STANDARD_MODEL", "process-model")
+    assert ModelSettings().standard_model == "process-model"
+    assert (
+        ModelSettings(standard_model="explicit-model").standard_model
+        == "explicit-model"
+    )

@@ -4,6 +4,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware.types import InputAgentState
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 
 from stocker_agent.llm import ModelProvider
@@ -14,6 +15,7 @@ from stocker_agent.tools.greeting import print_user_message
 def build_echo_graph(
     registry: SkillRegistry | None = None,
     models: ModelProvider | None = None,
+    checkpointer: BaseCheckpointSaver | None = None,
 ):
     """Name the node from skill metadata; defer model creation until first use."""
     skill_registry = registry if registry is not None else SkillRegistry.from_settings()
@@ -47,7 +49,17 @@ def build_echo_graph(
         agent_input: InputAgentState = {"messages": list(messages)}
         result = await agent.ainvoke(
             agent_input,
-            config={**config, "recursion_limit": 10},
+            config={
+                **config,
+                "recursion_limit": 10,
+                "metadata": {
+                    **config.get("metadata", {}),
+                    "skill_id": skill.manifest.id,
+                    "skill_version": skill.manifest.version,
+                    "skill_hash": skill.content_hash,
+                    "llm_tier": skill.manifest.llm_model.value,
+                },
+            },
         )
         return {"messages": result["messages"][len(messages) :]}
 
@@ -57,7 +69,7 @@ def build_echo_graph(
         .add_node(node_name, echo_agent)
         .add_edge(START, node_name)
         .add_edge(node_name, END)
-        .compile()
+        .compile(checkpointer=checkpointer)
     )
 
 

@@ -1,7 +1,7 @@
 .PHONY: dev ruff studio test-agent
 
 dev:
-	cd apps/agent && LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false uv run langgraph dev --no-browser
+	cd apps/agent && uv run fastapi dev
 
 ruff:
 	uv run --project apps/agent ruff check apps/agent
@@ -12,5 +12,5 @@ test-agent:
 
 studio:
 	pnpm --dir apps/studio build
-	@echo "Agent Chat UI: http://localhost:3000"
+	@echo "Stocker Studio: http://127.0.0.1:3000"
 	pnpm --dir apps/studio start

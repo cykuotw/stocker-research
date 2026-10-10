@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from pydantic import SecretStr, ValidationError
+
 from stocker_agent.config.llm import ModelSettings, ModelTier
 from stocker_agent.llm import ModelProvider
 from stocker_agent.skills.registry import SkillManifest
@@ -76,3 +77,30 @@ def test_manifest_tier_default_and_override() -> None:
 def test_credentials_are_not_shown_in_settings_repr(monkeypatch) -> None:
     monkeypatch.setenv("GOOGLE_API_KEY", "test-hidden-key")
     assert "test-hidden-key" not in repr(ModelSettings())
+
+
+@pytest.mark.asyncio
+async def test_missing_model_config_is_persisted_as_safe_actionable_error():
+    from unittest.mock import AsyncMock, Mock
+    from uuid import uuid4
+
+    from stocker_agent.app.runner import GraphRunner
+    from stocker_agent.config.errors import MissingModelSetting
+
+    missing = MissingModelSetting("GOOGLE_API_KEY")
+    run = {"run_id": uuid4(), "session_id": uuid4()}
+    repository = Mock(
+        get_run=AsyncMock(return_value={"status": "running"}), transition=AsyncMock()
+    )
+    service = Mock(repository=repository, graph=AsyncMock(side_effect=missing))
+    await GraphRunner(service, 0.1).execute(run)
+    repository.transition.assert_awaited_once_with(
+        run["run_id"],
+        "failed",
+        {
+            "code": "model_configuration_missing",
+            "exception_type": "MissingModelSetting",
+            "setting": "GOOGLE_API_KEY",
+            "message": missing.hint,
+        },
+    )

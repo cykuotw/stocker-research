@@ -5,6 +5,7 @@ from threading import Lock
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from stocker_agent.config.errors import MissingModelSetting
 from stocker_agent.config.llm import ModelSettings, ModelTier
 
 
@@ -26,7 +27,7 @@ class ModelProvider:
     def _create(self, model_id: str) -> BaseChatModel:
         key = self.settings.google_api_key
         if key is None or not key.get_secret_value().strip():
-            raise ValueError("GOOGLE_API_KEY must be configured for Gemini")
+            raise MissingModelSetting("GOOGLE_API_KEY")
         return ChatGoogleGenerativeAI(
             model=model_id,
             api_key=key,

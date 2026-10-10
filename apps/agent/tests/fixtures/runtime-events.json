@@ -1,0 +1,74 @@
+[
+  {
+    "event_id": 1,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "kind": "run.pending",
+    "created_at": "2026-10-09T12:00:00Z",
+    "payload": {},
+    "durable": true
+  },
+  {
+    "event_id": 2,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "kind": "on_tool_end",
+    "created_at": "2026-10-09T12:00:01Z",
+    "payload": {
+      "event": "on_tool_end",
+      "name": "print_user_message",
+      "run_id": "00000000-0000-4000-8000-000000000003",
+      "parent_ids": ["00000000-0000-4000-8000-000000000004"],
+      "tags": [],
+      "metadata": {"langgraph_node": "echo-agent", "skill_id": "echo-agent"},
+      "data": {"output": "hello"},
+      "inspection": {"node": "echo-agent", "model": null, "skill": "echo-agent", "tool": "print_user_message", "duration_ms": 1.5, "usage": null}
+    },
+    "durable": true
+  },
+  {
+    "event_id": 3,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "kind": "state.updated",
+    "created_at": "2026-10-09T12:00:02Z",
+    "payload": {"checkpoint_id": "00000000-0000-6000-8000-000000000001", "next": [], "interrupts": []},
+    "durable": true
+  },
+  {
+    "event_id": 4,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "kind": "run.completed",
+    "created_at": "2026-10-09T12:00:02Z",
+    "payload": {"status": "completed", "error": null},
+    "durable": true
+  },
+  {
+    "event_id": 8,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000005",
+    "kind": "state.updated",
+    "created_at": "2026-10-09T12:01:00Z",
+    "payload": {"checkpoint_id": "00000000-0000-6000-8000-000000000002", "next": ["review"], "interrupts": [{"id": "review-1", "value": {"question": "approve?"}}]},
+    "durable": true
+  },
+  {
+    "event_id": 9,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000005",
+    "kind": "run.interrupted",
+    "created_at": "2026-10-09T12:01:00Z",
+    "payload": {"status": "interrupted", "error": null},
+    "durable": true
+  },
+  {
+    "event_id": 12,
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "run_id": "00000000-0000-4000-8000-000000000006",
+    "kind": "run.failed",
+    "created_at": "2026-10-09T12:02:00Z",
+    "payload": {"status": "failed", "error": {"code": "graph_execution_failed", "exception_type": "ValueError"}},
+    "durable": true
+  }
+]

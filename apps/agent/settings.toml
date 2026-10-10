@@ -9,3 +9,8 @@ max_retries = 2
 [skills]
 mode = "local"
 local_path = "./skills"
+
+[app]
+cors_origins = ["http://localhost:3000", "http://localhost:5173"]
+poll_seconds = 0.2
+max_pool_size = 5

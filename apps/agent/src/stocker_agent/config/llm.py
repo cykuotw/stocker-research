@@ -1,4 +1,4 @@
-"""Provider and model-tier settings from process environment."""
+"""Provider and model-tier settings from shared configuration sources."""
 
 from enum import StrEnum
 from typing import Literal
@@ -7,6 +7,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import SettingsConfigDict
 
 from stocker_agent.config.base import FileSettings
+from stocker_agent.config.errors import MissingModelSetting, ModelSetting
 
 
 class ModelTier(StrEnum):
@@ -46,5 +47,10 @@ class ModelSettings(FileSettings):
             ModelTier.COMPLEX: self.complex_model,
         }[tier].strip()
         if not model:
-            raise ValueError(f"LLM_{tier.value.upper()}_MODEL must be configured")
+            setting_names: dict[ModelTier, ModelSetting] = {
+                ModelTier.INSTANT: "LLM_INSTANT_MODEL",
+                ModelTier.STANDARD: "LLM_STANDARD_MODEL",
+                ModelTier.COMPLEX: "LLM_COMPLEX_MODEL",
+            }
+            raise MissingModelSetting(setting_names[tier])
         return model
