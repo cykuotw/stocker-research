@@ -26,3 +26,6 @@ next-env.d.ts
 
 # Agent task management
 .agents/*
+
+# Local editor settings
+/.vscode/settings.json
