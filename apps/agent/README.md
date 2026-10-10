@@ -1,118 +1,181 @@
 # Stocker Agent
 
-Python backend for Taiwan equity research. Includes a skill-driven echo graph for
-local testing; research workflows and data integrations are planned.
+Python backend for Taiwan equity research, using FastAPI, LangGraph, and
+PostgreSQL. The skill-driven `echo` graph is implemented; research workflows and
+data integrations are planned. No official Agent Server, LangSmith account,
+cloud license, or Redis is required. Tracing is disabled at startup.
 
-From the repository root, run `make dev` or `make ruff`.
-Run `make test-agent` for the backend test suite.
-Use `uv sync --project apps/agent --locked` to install Python dependencies.
+## Local setup
 
-Run `make dev` to start Agent Server at `http://localhost:2024` with graph ID
-`echo`. Send a chat message through Studio to receive `Echo: <your message>`.
-A `GOOGLE_API_KEY` in process environment or `apps/agent/.env` is required. Keep application code under `src/stocker_agent/`.
+Requires Python 3.14+, `uv`, and PostgreSQL 16. Use a persistent local database
+named `stocker_agent_runtime`. The application login needs CONNECT and CREATE on
+that database and owns the `runtime` and `checkpoints` schemas; it does not need
+SUPERUSER, CREATEDB, or CREATEROLE.
 
-## Research skill configuration
+Supply credentials through process environment or an operator-managed
+`apps/agent/.env`:
 
-Local application skills belong in `apps/agent/skills/`, which is ignored by Git.
-Create it with `mkdir -p apps/agent/skills` from the repository root.
-Development-assistant skills are separate from these application skills.
+| Variable | Meaning |
+| --- | --- |
+| `DB_HOST` / `DB_PUBLIC_HOST` | PostgreSQL hostname; default `127.0.0.1` |
+| `DB_PORT` | Host-mapped port; default `5433` |
+| `DB_USER` | Application login; default `stocker_agent_app` |
+| `DB_PASSWORD` | Application password |
+| `DB_NAME` | Must be `stocker_agent_runtime` |
+| `DATABASE_URI` | Optional PostgreSQL URI or libpq string replacing DB fields |
+| `GOOGLE_API_KEY` | Required to execute the Gemini echo graph |
 
-`SkillSettings` in `stocker_agent.config.skills` reads the `[skills]` section of
-`apps/agent/settings.toml`, `apps/agent/.env`, and process environment.
+From the repository root:
 
-Keep environment settings under `stocker_agent/config/`, grouped by concern.
-The future skill registry and storage loaders belong in separate application modules.
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SKILL_MODE` | `local` | `local` or `s3` |
-| `SKILL_LOCAL_PATH` | `./skills` | Local filesystem path |
-| `SKILL_S3_BUCKET` | empty | Bucket name, required in S3 mode |
-| `SKILL_S3_PREFIX` | `skills` | Object prefix within the bucket |
-
-Relative local paths resolve from `apps/agent/`, independently of the working
-directory. Local and S3 skill loading and explicit in-process refresh are implemented.
-The echo graph uses the registry; the manual refresh API is not implemented yet. No refresh
-interval or automatic polling is planned. The echo graph loads the `echo-agent` skill. Production will supply these settings through deployment-managed env.
-
-`make dev` disables LangSmith tracing. Future deployments must also keep
-`LANGSMITH_TRACING=false` and `LANGCHAIN_TRACING_V2=false`.
-
-## Skill registry
-
-Each skill directory must contain `SKILL.md` with `name` and `description` YAML
-frontmatter, and `manifest.yaml` with `id` and `version`. Directory name, skill
-name and manifest ID must match. Optional manifest fields are `required_tools`,
-`allowed_agents`, `llm_model`, and `status` (`active` or `inactive`). `llm_model`
-accepts `instant`, `standard` (default), or `complex`.
-
-```python
-from stocker_agent.skills.registry import SkillRegistry
-
-registry = SkillRegistry.from_settings()
-run_skills = registry.snapshot()
-skill = run_skills["echo-agent"]
-instructions = skill.instructions
-
-registry.refresh()  # Explicit reload for subsequent runs
+```bash
+uv sync --project apps/agent --locked
+make dev
 ```
 
-Snapshots are immutable and failed refreshes preserve the previous snapshot.
-Retain a snapshot for an in-flight run; `content_hash` identifies the loaded
-document and manifest. The registry does not execute instructions or grant tools.
-It currently loads only the document and manifest, not optional references.
-S3 uses the same `<prefix>/<skill-id>/` layout; AWS credentials come from the SDK's
-standard credential chain. Updates must not overlap a refresh: immutable published
-revisions, durable resume pinning, and refresh coordination across processes remain
-to be implemented. S3 loading has been tested with a fake client, not a live bucket.
+`make dev` starts FastAPI with reload at `http://127.0.0.1:8000`. The shared
+configuration layer loads `apps/agent/.env` automatically, including DB,
+model, and skill settings; `uv --env-file` is not required. The file is optional
+when all required credentials are supplied through process environment.
 
-## Model providers
+Non-secret settings belong in `settings.toml`: `[app]`, `[skills]`, and
+`[llm-models]`. Settings precedence is constructor values, process environment,
+`.env`, TOML, then defaults. `.env.local` is not loaded. Keep credentials
+out of TOML and browser configuration. Restart after changing configuration.
 
-`ModelProvider` exposes LangChain `BaseChatModel` clients for `instant` (small,
-latency-sensitive tasks), `standard` (general analysis), and `complex` (deeper
-synthesis). Graph nodes select tiers without importing provider SDK classes:
+## Backend structure and persistence
 
-```python
-from stocker_agent.llm import ModelProvider, ModelTier
+`src/stocker_agent/server.py` is the FastAPI entrypoint (`app = create_app()`).
+The `app/` package separates application assembly, resources, and HTTP transport:
 
-models = ModelProvider()
-model = models.get(ModelTier.STANDARD)
-# Or select the tier declared by a loaded skill:
-model = models.get(skill.manifest.llm_model)
-# In an async graph node: response = await model.ainvoke(messages)
+- `factory.py`: one settings snapshot, CORS, errors, routers, and optional static UI.
+- `lifespan.py`: eager PostgreSQL/checkpointer/graph startup, worker ownership,
+  recovery, and shutdown. The worker stops before database pools close.
+- `context.py` and `dependencies.py`: typed application resources and reusable
+  `Annotated[..., Depends(...)]` accessors.
+- `routers/`: system, assistants/sessions, runs, and inspection/SSE endpoints.
+- `service.py`: session/run operations and checkpoint/event queries.
+- `runner.py`: durable graph execution, cancellation, and recovery.
+- `repository.py`: parameterized SQL, transactions, and runtime migrations.
+
+Resources are created once per application lifespan. HTTP dependencies retrieve
+those resources; services and the worker use constructor injection. Tests can
+replace dependency functions with `app.dependency_overrides` and supply a test
+lifespan without opening PostgreSQL or calling a model. Missing DB credentials
+fail at startup rather than during application assembly.
+
+Custom metadata lives in the `runtime` schema. LangGraph's `AsyncPostgresSaver`
+manages the `checkpoints` schema and owns messages, graph state, and interrupts.
+The session UUID maps to LangGraph `thread_id`; each turn has its own `run_id`.
+Research-result storage is separate from runtime persistence.
+
+Startup applies checksummed migrations and checkpoint setup automatically.
+Run one server process per database: an advisory lock rejects another instance,
+and losing that connection stops execution. The single worker executes persisted
+pending runs sequentially; overlapping runs within a session are rejected.
+
+## API and execution
+
+Use `http://127.0.0.1:8000/docs` or `/openapi.json` for the complete API contract.
+`/health` checks PostgreSQL and worker readiness; `/info` identifies the protocol.
+
+| Operation | Endpoint |
+| --- | --- |
+| Discover graphs | `GET /api/graphs` |
+| Create/list assistants | `POST` / `GET /api/assistants` |
+| Create/list sessions | `POST` / `GET /api/sessions` |
+| Submit/list runs | `POST` / `GET /api/sessions/{session_id}/runs` |
+| Inspect/cancel a run | `GET /api/runs/{run_id}`, `POST /api/runs/{run_id}/cancel` |
+| Current state and history | `GET /api/sessions/{session_id}/state`, `GET /api/sessions/{session_id}/checkpoints` |
+| Compare checkpoints | `GET /api/sessions/{session_id}/checkpoints/compare?left=...&right=...` |
+| Inspect/stream events | `GET /api/runs/{run_id}/events`, `GET /api/runs/{run_id}/events/stream` |
+
+Create an assistant with `{"graph_id":"echo","name":"Echo"}`, then create a
+session with its `assistant_id`. Submit each turn to the same session's runs URL:
+
+```json
+{
+  "input": {"messages": [{"role": "user", "content": "hello"}]},
+  "idempotency_key": "a-unique-key-per-turn"
+}
 ```
 
-Gemini is the currently supported provider. `settings.toml` selects
-`gemini-3.5-flash-lite` for instant, `gemini-3.8-flash` for standard, and
-`gemini-3.1-pro-preview` for complex. The complex model is a preview; verify
-account availability and evaluate results before production use.
-Override IDs with `LLM_INSTANT_MODEL`, `LLM_STANDARD_MODEL`, and
-`LLM_COMPLEX_MODEL` when needed. Gemini requires `GOOGLE_API_KEY`.
-The shared config layer reads keys from process environment or `apps/agent/.env`.
-Do not commit credentials or expose them in frontend variables.
+HTTP 202 means the run is persisted. Exact retries with the same session/key
+return the existing run; changed bodies or overlapping runs return HTTP 409.
+Disconnecting from SSE does not cancel an accepted run.
 
-Optional settings: `LLM_TIMEOUT_SECONDS=60` and `LLM_MAX_RETRIES=2`.
-Clients are created lazily and cached per tier on a provider instance. Create a
-new instance after changing configuration. Instantiate once and inject it into
-nodes or agents; keep provider-specific model IDs out of graph code.
+Resume an interrupted session using a new key:
 
-Tool calling, structured output, reasoning and multimodal capabilities depend
-on the selected model. No automatic tier fallback or capability equivalence is
-implied. The echo graph uses the configured skill tier and console tool; no live model call has been verified.
+```json
+{"action":"resume","resume":true,"idempotency_key":"review-1"}
+```
 
-## Settings and environment secrets
+After a failed, cancelled, or unfinished run, explicitly acknowledge replay:
 
-Copy `.env.example` to `.env` in `apps/agent/` for a local template and fill in
-`GOOGLE_API_KEY` when using Gemini. The shared config layer automatically reads
-this file when settings are created, including under `make dev`. The echo graph
-requires a Gemini key. S3 variables are optional for local skill mode.
+```json
+{"action":"recover","acknowledge_replay":true,"idempotency_key":"recovery-1"}
+```
 
-Edit `apps/agent/settings.toml` for model provider, tier model IDs, timeout/retries,
-and skill mode/local path. `[llm-models]` and `[skills]` map to the corresponding
-settings classes. Source priority is explicit constructor values, environment
-overrides, `.env`, TOML, then defaults. File paths do not depend on the working directory.
+Pending work survives restart and executes automatically. Unfinished running
+work becomes `recovery_required` and waits for acknowledgement. Recovery uses
+saved checkpoints; unfinished nodes may replay. Keep side effects idempotent.
+Cancellation is cooperative and cannot undo a completed external side effect.
 
-Keep `GOOGLE_API_KEY`, `SKILL_S3_BUCKET`, and
-`SKILL_S3_PREFIX` in process environment or the ignored `apps/agent/.env`. These fields are rejected in settings.toml.
-Changing settings requires a new settings/provider instance; no file watcher is
-implemented. Deployment packaging must include the non-secret settings file.
+Durable events expose run lifecycle, graph/node execution, model/tool activity,
+and checkpoint references. Inspection metadata includes nullable node, model,
+skill, tool, duration, and usage fields. Final messages and node updates are
+observable; per-token streaming is not implemented. See
+[event fixtures](tests/fixtures/runtime-events.json).
+
+SSE uses `event_id` as its `id`; reconnect with `Last-Event-ID` or `?after=`.
+Event history uses an exclusive numeric `after` cursor. Other lists use UUID
+`after` cursors; checkpoint history is newest first with `before=checkpoint_id`.
+Lists accept `limit` from 1–200, default 50. Events and checkpoints are retained;
+automatic pruning and deletion APIs are not implemented.
+
+## Skills and models
+
+Local research skills belong in `apps/agent/skills/` (Git-ignored). Each directory
+contains `SKILL.md` with name/description frontmatter and `manifest.yaml` with
+matching `id` and `version`. Optional fields include `required_tools`,
+`allowed_agents`, `llm_model`, and `status`. Skills cannot grant tool permissions.
+
+`SKILL_MODE=local|s3` selects the source; `SKILL_LOCAL_PATH` defaults to `./skills`,
+resolved from `apps/agent`. S3 requires `SKILL_S3_BUCKET`; `SKILL_S3_PREFIX`
+defaults to `skills`. `SkillRegistry.refresh()` updates subsequent snapshots;
+failed refreshes retain the previous snapshot. There is no HTTP refresh endpoint
+or automatic refresh. Optional references and durable skill-version pinning are
+not implemented; S3 loading has only been tested with a fake client.
+
+`ModelProvider` exposes `instant`, `standard`, and `complex` tiers. Gemini is the
+supported provider; model IDs, timeouts, and retries are configured in
+`settings.toml` and can be overridden with `LLM_*` environment variables.
+The echo graph uses its skill's tier and the `print_user_message` tool.
+Clients are lazy and cached; no automatic tier fallback is implemented.
+
+## UI and checks
+
+`apps/studio` is the React + Vite client for this API, providing sessions, chat,
+execution events/traces, state, checkpoints, and interrupt/resume controls. See
+[Studio setup](../studio/README.md). Optional
+`APP_STATIC_DIRECTORY` serves a built static UI; missing assets allow API-only
+startup, and unknown API routes keep their errors instead of falling through to
+the UI. Relative paths resolve from `apps/agent`. `APP_CORS_ORIGINS` accepts a
+JSON list, defaulting to local ports 3000 and 5173. Remote authentication and TLS
+are not implemented; the server binds to loopback by default.
+
+From the repository root:
+
+```bash
+make test-agent
+make ruff
+```
+
+PostgreSQL integration tests require `TEST_RUNTIME_DATABASE_URI` pointing to
+`stocker_agent_runtime`; otherwise they skip. They create unique test records
+without resetting schemas. Tests use deterministic graphs and fake models;
+live Gemini verification is manual.
+
+Missing Gemini keys or model IDs fail the run with `model_configuration_missing`
+and a setting name, without exposing credentials. Configure the missing setting,
+restart the backend, then acknowledge recovery for the failed session. HTTP 202
+means the run was accepted; its stored status determines whether execution succeeded.

@@ -16,8 +16,8 @@ packages/   Reserved for shared frontend packages
 ```
 
 The planned backend uses Gemini, structured financial data, and traceable
-research evidence. The Studio currently provides the upstream chat interface;
-custom graph and state inspection panels have not been added.
+research evidence. Studio provides a React + Vite development UI for sessions, chat, execution
+events, observed traces, state, and checkpoint inspection.
 
 ## Development
 
@@ -31,25 +31,16 @@ make ruff
 make studio
 ```
 
-`make studio` builds the chat UI, then starts the production server locally.
-It rebuilds on each invocation and does not provide hot reload. For UI development,
-run `pnpm --dir apps/studio dev` instead.
-Connect it to a running LangGraph server using the URL and graph ID in its setup
-screen. The UI needs a graph that supports chat messages.
+`make studio` builds Studio and previews static assets at
+`http://127.0.0.1:3000`. For hot reload, run `pnpm --dir apps/studio dev`
+at `http://127.0.0.1:5173`.
 
-For a local sanity test, run `make dev` and `make studio` in separate terminals.
-Open the Agent Chat UI at `http://localhost:3000`; ensure the port is available.
-`make dev` runs the backend without opening
-LangSmith Studio.
-In the UI setup screen, enter `http://localhost:2024` as the server URL and `echo`
-as the graph ID. Leave the API key empty. Sending `hello` returns `Echo: hello`.
-If an existing browser URL contains `assistantId=agent`, change it to
-`assistantId=echo` or reopen the setup screen without query parameters.
-The echo graph loads the `echo-agent` skill and uses its configured model tier.
-Set `GOOGLE_API_KEY` in `apps/agent/.env` or the backend process environment.
-The shared config layer automatically loads `.env` and `settings.toml`. The model calls `print_user_message` to print the
-greeting in the backend console, then replies with `Echo: <your message>`.
-The API key field in Studio is for server authentication, not the Gemini key.
+`make dev` starts the custom FastAPI + PostgreSQL backend on port 8000. See
+[local runtime setup](apps/agent/README.md) for configuration, API endpoints,
+and persistence. No LangSmith account, license, or Agent Server is needed.
+Studio connects to the custom runtime through its Service URL field. Select a
+graph and session to chat and inspect execution. API documentation remains
+available at `http://127.0.0.1:8000/docs`.
 
 Frontend checks and build:
 

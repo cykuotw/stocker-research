@@ -44,8 +44,8 @@
 
 ## Runtime and persistence
 
-- Use LangGraph Agent Server for threads, runs, streaming, checkpoints, human review, and runtime persistence as it is introduced.
-- Separate application business data from Agent Server runtime data using distinct databases or schemas. Do not modify Agent Server-managed tables or build duplicate thread/run/checkpoint persistence.
+- Use the custom FastAPI server for runtime endpoints, sessions, runs, and durable observation events. LangGraph owns graph execution, state, checkpoints, interrupts, and resume; the PostgreSQL checkpointer manages its own tables. No official Agent Server or LangSmith account is required.
+- Keep runtime data in `stocker_agent_runtime`, with custom metadata in `runtime` and LangGraph-managed tables in `checkpoints`. Separate business/research data; do not duplicate checkpoint-owned conversation/state persistence or modify checkpointer-managed tables manually.
 - Keep human-review nodes small and safe to replay. Put non-idempotent side effects in subsequent nodes and use idempotency keys where needed.
 - Use LangGraph interrupts and resume commands for human review. Treat each node as an execution boundary that may run again.
 - Treat future AG-UI events as transient communication, not persistence. Conversation continuity uses the same thread identifier across HTTP requests; server-to-client streaming can use SSE.
@@ -75,9 +75,9 @@
 - Treat upstream skills as maintained dependencies. Do not edit, replace, update, or remove them or their lock entries without explicit authorization.
 - Apply skill guidance to this repository's actual stack. Examples from other projects do not redefine it or authorize adding a frontend or new infrastructure.
 - Choose skills by the changed concern: `python-design-patterns` for component boundaries and refactoring, `python-type-safety` for annotations and typed contracts, and `modern-python` for Python tooling, packaging, and scripts.
-- Use `langchain-dependencies` when selecting or updating LangChain/LangGraph packages, `langchain-fundamentals` for agents, tools, and structured output, `langgraph-fundamentals` for graph code, and `langgraph-cli` for CLI usage and `langgraph.json`.
+- Use `langchain-dependencies` when selecting or updating LangChain/LangGraph packages, `langchain-fundamentals` for agents, tools, and structured output, `langgraph-fundamentals` for graph code. The custom runtime does not use LangGraph CLI configuration.
 - Load only relevant skills and their Python references. Preserve this repository's Python requirement, `uv` workflow, graph-first design, and initial Gemini provider choice; provider and tooling examples are illustrative.
-- Installing a skill does not authorize installing its example dependencies, migrating tooling, adding Make targets, deploying, or launching subagents. The current Makefile exposes `make dev` for the LangGraph development server, `make ruff` for Python lint and formatting checks, `make studio` for the development chat UI, and `make test-agent` for backend tests.
+- Installing a skill does not authorize installing its example dependencies, migrating tooling, adding Make targets, deploying, or launching subagents. The current Makefile exposes `make dev` for the custom FastAPI backend, `make ruff` for Python lint and formatting checks, `make studio` for the React + Vite development UI, and `make test-agent` for backend tests.
 - Keep Python packaging and runtime configuration in `apps/agent/`. Run Python tooling from that directory or use `uv run --project apps/agent`. Each frontend manages its own package manifest, pnpm lockfile, and dependencies; there is no root pnpm workspace. `apps/studio/` is the development UI, `apps/web/` is reserved for the production frontend, and `packages/` is reserved for future shared frontend packages.
 - Related skills mentioned by upstream documents may not be installed. Check availability and continue using the installed skill's bundled references; do not automatically install additional skills.
 - `skills-lock.json` records upstream repositories, immutable commit refs, skill paths, and directory hashes. Its `hashFormat` defines how to reproduce `computedHash`; preserve upstream skill content when updating the lock.

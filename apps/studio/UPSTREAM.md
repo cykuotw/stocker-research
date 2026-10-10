@@ -1,3 +1,6 @@
+> Historical upstream documentation. These Agent Server/Next.js instructions do
+> not apply to Stocker Studio; use [README.md](README.md) for current setup.
+
 # Agent Chat UI
 
 Agent Chat UI is a Next.js application which enables chatting with any LangGraph server with a `messages` key through a chat interface.
