@@ -29,7 +29,7 @@
 - Skill manifests declare required tools and runtime metadata. Effective tools are the intersection of skill requirements, agent policy, and tools available in the environment. A skill cannot grant permissions.
 - Implement `ToolRegistry` as a Python runtime registry populated at application startup. Expose REST, MCP, database, and Python integrations through consistent tool interfaces with clear descriptions and input schemas.
 - Prefer deterministic Python strategies for screening, financial calculations, and scoring. Use LLMs for qualitative evidence, management commentary, contradictions, and synthesis.
-- Use provider abstractions for model tiers (`INSTANT`, `STANDARD`, `COMPLEX`) and web search. Gemini is the currently supported model provider; Google Search grounding remains the initial planned search provider. Skill manifests select a tier using `llm_model`; do not hard-code provider choices throughout agents or skills.
+- Use provider abstractions for model tiers (`INSTANT`, `STANDARD`, `COMPLEX`) and web search. ModelRouter maps tiers to configured Gemini or OpenRouter provider/model routes; Google Search grounding remains the initial planned search provider. Skill manifests select a tier using `llm_model`; do not hard-code provider choices throughout agents or skills.
 - Organize application modules within `apps/agent/src/stocker_agent/`, following the backlog's separation of graphs, agents, skill loading, tools, strategies, document processing, repositories, and model providers as they are implemented.
 
 ## Data and research evidence

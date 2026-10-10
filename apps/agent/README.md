@@ -53,8 +53,9 @@ The `app/` package separates application assembly, resources, and HTTP transport
 - `routers/`: system, assistants/sessions, runs, and inspection/SSE endpoints.
 - `services/`: session/run operations, checkpoint/event queries, and durable
   graph execution, cancellation, and recovery.
-- `repositories/`: parameterized SQL and transactions; `migrations/` retains
-  runtime migration resources.
+- `database/`: application-scoped database factory, SQLAlchemy table mappings,
+  and migration execution. `migrations/` retains immutable runtime DDL resources.
+- `repositories/`: SQLAlchemy Core queries with bound values and transactions.
 - `models/`: graph, assistant, session, run, event, and checkpoint HTTP models.
 - `utils/`: public-data serialization and redaction.
 
@@ -63,6 +64,42 @@ those resources; services and the worker use constructor injection. Tests can
 replace dependency functions with `app.dependency_overrides` and supply a test
 lifespan without opening PostgreSQL or calling a model. Missing DB credentials
 fail at startup rather than during application assembly.
+
+`DatabaseFactory` opens one SQLAlchemy async engine for runtime metadata, one
+psycopg pool for LangGraph checkpoints, and a dedicated advisory-lock connection
+per application lifespan. Operations borrow connections from their pool; no
+single connection is shared across concurrent transactions. The worker stops
+before database resources close, including when startup fails.
+
+Runtime queries use SQLAlchemy Core expressions for selects, inserts, updates,
+pagination, row locks, and `SKIP LOCKED`. Values remain bound parameters.
+LangGraph continues using its supported psycopg checkpointer. The existing
+checksummed migration SQL is unchanged and runs as trusted bundled DDL through
+the engine's psycopg driver; table mappings do not manage or alter schemas.
+
+`graphs/` contains workflow implementations. `graph_runtime/` contains the
+catalog, registry, and shared-resource contract. Graph factories are explicitly registered in `graph_runtime/catalog.py`. Startup creates
+one `GraphResources` bundle with the PostgreSQL checkpointer, model router, skill
+registry, and tool registry. `GraphRegistry` passes that same bundle to each
+factory and validates the compiled result. Graph modules do not create instances
+at import time, and `lifespan.py` contains no per-graph wrappers.
+
+To add a workflow, implement `build_graph(resources: GraphResources)` in its
+graph module and register it under a unique ID in `GRAPH_FACTORIES`:
+
+```python
+GRAPH_FACTORIES = {
+    "echo": build_echo_graph,
+    "company_research": build_company_research_graph,
+}
+```
+
+The second entry illustrates a future workflow; only `echo` is currently
+registered. Compile with `resources.checkpointer` and reuse `resources.models`,
+`resources.skills`, and `resources.tools`. Available tools remain subject to each
+graph's policy and the skill manifest. Model clients are initialized on use.
+Tests can override `graph_factories` and `graph_resources_factory` in `create_app`
+to inject deterministic graphs/resources without loading local skills or models.
 
 Custom metadata lives in the `runtime` schema. LangGraph's `AsyncPostgresSaver`
 manages the `checkpoints` schema and owns messages, graph state, and interrupts.
@@ -147,11 +184,41 @@ failed refreshes retain the previous snapshot. There is no HTTP refresh endpoint
 or automatic refresh. Optional references and durable skill-version pinning are
 not implemented; S3 loading has only been tested with a fake client.
 
-`ModelProvider` exposes `instant`, `standard`, and `complex` tiers. Gemini is the
-supported provider; model IDs, timeouts, and retries are configured in
-`settings.toml` and can be overridden with `LLM_*` environment variables.
-The echo graph uses its skill's tier and the `print_user_message` tool.
-Clients are lazy and cached; no automatic tier fallback is implemented.
+`ModelRouter` maps `instant`, `standard`, and `complex` tiers to provider/model
+routes. `ModelProvider` is the abstract client factory/cache contract, implemented
+by `GeminiProvider` and `OpenRouterProvider`. The echo graph selects only its
+skill's tier and uses the `print_user_message` tool. Clients are lazy and cached
+by model ID within each provider; tiers sharing a provider/model reuse a client.
+
+Configure routes in `settings.toml`:
+
+```toml
+[llm-models]
+timeout_seconds = 600
+max_retries = 2
+
+[llm-models.instant]
+provider = "gemini"
+model = "gemini-3.5-flash-lite"
+
+[llm-models.standard]
+provider = "gemini"
+model = "gemini-3.8-flash"
+
+[llm-models.complex]
+provider = "openrouter"
+model = "anthropic/claude-opus-4.6"
+```
+
+Keep `GOOGLE_API_KEY` and `OPENROUTER_API_KEY` in `.env` or the process
+environment. A key is required only when its provider is used. Provider/model
+overrides use `LLM_INSTANT__PROVIDER`, `LLM_INSTANT__MODEL`, and the corresponding
+`STANDARD`/`COMPLEX` names. These replace the old `LLM_PROVIDER` and
+`LLM_*_MODEL` variables; existing overrides must be renamed. Timeout/retry
+overrides remain `LLM_TIMEOUT_SECONDS` and `LLM_MAX_RETRIES`. Restart after changes.
+Both providers use the same timeout in seconds; the OpenRouter adapter converts
+it to SDK milliseconds. There is no automatic model/tier fallback. OpenRouter
+model calls remain manually verified; automated tests use fake responses.
 
 ## UI and checks
 
