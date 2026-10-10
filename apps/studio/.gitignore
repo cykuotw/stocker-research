@@ -28,3 +28,7 @@ dist-ssr
 .env
 .next/
 next-env.d.ts
+
+# Browser test artifacts
+test-results/
+playwright-report/
