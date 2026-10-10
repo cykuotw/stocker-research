@@ -1,13 +1,15 @@
-"""Provider and model-tier settings from shared configuration sources."""
+"""Per-tier provider/model routing from shared configuration sources."""
 
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from pydantic_settings import SettingsConfigDict
 
 from stocker_agent.config.base import FileSettings
 from stocker_agent.config.errors import MissingModelSetting, ModelSetting
+
+ProviderName = Literal["gemini", "openrouter"]
 
 
 class ModelTier(StrEnum):
@@ -16,41 +18,48 @@ class ModelTier(StrEnum):
     COMPLEX = "complex"
 
 
+class ModelRoute(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    provider: ProviderName = "gemini"
+    model: str = ""
+
+
 class ModelSettings(FileSettings):
     settings_section = "llm-models"
     file_fields = frozenset(
-        {
-            "provider",
-            "instant_model",
-            "standard_model",
-            "complex_model",
-            "timeout_seconds",
-            "max_retries",
-        }
+        {"instant", "standard", "complex", "timeout_seconds", "max_retries"}
     )
-    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=None, frozen=True)
+    model_config = SettingsConfigDict(
+        env_prefix="LLM_", env_nested_delimiter="__", env_file=None, frozen=True
+    )
 
-    provider: Literal["gemini"] = "gemini"
-    instant_model: str = ""
-    standard_model: str = ""
-    complex_model: str = ""
+    instant: ModelRoute = Field(default_factory=ModelRoute)
+    standard: ModelRoute = Field(default_factory=ModelRoute)
+    complex: ModelRoute = Field(default_factory=ModelRoute)
     timeout_seconds: int = Field(default=60, gt=0)
     max_retries: int = Field(default=2, ge=0)
     google_api_key: SecretStr | None = Field(
         default=None, validation_alias="GOOGLE_API_KEY", repr=False
     )
+    openrouter_api_key: SecretStr | None = Field(
+        default=None, validation_alias="OPENROUTER_API_KEY", repr=False
+    )
 
-    def model_id(self, tier: ModelTier) -> str:
-        model = {
-            ModelTier.INSTANT: self.instant_model,
-            ModelTier.STANDARD: self.standard_model,
-            ModelTier.COMPLEX: self.complex_model,
-        }[tier].strip()
-        if not model:
+    def route(self, tier: ModelTier | str) -> ModelRoute:
+        selected = ModelTier(tier)
+        route = {
+            ModelTier.INSTANT: self.instant,
+            ModelTier.STANDARD: self.standard,
+            ModelTier.COMPLEX: self.complex,
+        }[selected]
+        if not route.model:
             setting_names: dict[ModelTier, ModelSetting] = {
-                ModelTier.INSTANT: "LLM_INSTANT_MODEL",
-                ModelTier.STANDARD: "LLM_STANDARD_MODEL",
-                ModelTier.COMPLEX: "LLM_COMPLEX_MODEL",
+                ModelTier.INSTANT: "LLM_INSTANT__MODEL",
+                ModelTier.STANDARD: "LLM_STANDARD__MODEL",
+                ModelTier.COMPLEX: "LLM_COMPLEX__MODEL",
             }
-            raise MissingModelSetting(setting_names[tier])
-        return model
+            raise MissingModelSetting(setting_names[selected])
+        return route
+
+    def model_id(self, tier: ModelTier | str) -> str:
+        return self.route(tier).model

@@ -4,30 +4,20 @@ from langchain.agents import create_agent
 from langchain.agents.middleware.types import InputAgentState
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
-from stocker_agent.llm import ModelProvider
-from stocker_agent.skills.registry import SkillRegistry
-from stocker_agent.tools.greeting import print_user_message
+from stocker_agent.graph_runtime.resources import GraphResources
 
 
-def build_echo_graph(
-    registry: SkillRegistry | None = None,
-    models: ModelProvider | None = None,
-    checkpointer: BaseCheckpointSaver | None = None,
-):
-    """Name the node from skill metadata; defer model creation until first use."""
-    skill_registry = registry if registry is not None else SkillRegistry.from_settings()
+def build_echo_graph(resources: GraphResources) -> CompiledStateGraph:
+    """Build one graph with application-scoped resources; clients remain lazy."""
+    skill_registry = resources.skills
     node_name = skill_registry.get("echo-agent").metadata.name
-    model_provider = models
 
     async def echo_agent(
         state: MessagesState, config: RunnableConfig
     ) -> dict[str, list[BaseMessage]]:
-        nonlocal model_provider
-        if model_provider is None:
-            model_provider = ModelProvider()
         skill = skill_registry.get("echo-agent")
         if (
             skill.manifest.allowed_agents
@@ -35,14 +25,14 @@ def build_echo_graph(
         ):
             raise ValueError("echo-agent is not allowed for the echo agent")
         # This agent permits only this console tool. Skills cannot expand policy.
-        available = {print_user_message.name: print_user_message}
+        allowed_tools = {"print_user_message"}
         requested = skill.manifest.required_tools
-        unsupported = set(requested) - available.keys()
+        unsupported = set(requested) - allowed_tools
         if unsupported:
             raise ValueError(f"Unsupported echo tools: {sorted(unsupported)}")
         agent = create_agent(
-            model=model_provider.get(skill.manifest.llm_model),
-            tools=[available[name] for name in dict.fromkeys(requested)],
+            model=resources.models.get(skill.manifest.llm_model),
+            tools=[resources.tools.get(name) for name in dict.fromkeys(requested)],
             system_prompt=skill.instructions,
         )
         messages = state["messages"]
@@ -69,8 +59,5 @@ def build_echo_graph(
         .add_node(node_name, echo_agent)
         .add_edge(START, node_name)
         .add_edge(node_name, END)
-        .compile(checkpointer=checkpointer)
+        .compile(checkpointer=resources.checkpointer)
     )
-
-
-graph = build_echo_graph()

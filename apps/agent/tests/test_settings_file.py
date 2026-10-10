@@ -11,12 +11,12 @@ from stocker_agent.config.skills import SkillSettings
 def test_dotenv_loading_and_precedence(monkeypatch, tmp_path: Path) -> None:
     settings_file = tmp_path / "settings.toml"
     settings_file.write_text(
-        '[llm-models]\nstandard_model = "from-toml"\n[skills]\nmode = "local"\n'
+        '[llm-models.standard]\nmodel = "from-toml"\n[skills]\nmode = "local"\n'
     )
     dotenv_file = tmp_path / "test-settings.env"
     dotenv_file.write_text(
         "GOOGLE_API_KEY=test-dotenv-key\n"
-        "LLM_STANDARD_MODEL=from-dotenv\n"
+        "LLM_STANDARD__MODEL=from-dotenv\n"
         "SKILL_MODE=s3\nSKILL_S3_BUCKET=test-bucket\n"
         "UNRELATED_SETTING=ignored\n"
     )
@@ -24,21 +24,21 @@ def test_dotenv_loading_and_precedence(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(base, "ENV_FILE", dotenv_file)
     for name in (
         "GOOGLE_API_KEY",
-        "LLM_STANDARD_MODEL",
+        "LLM_STANDARD__MODEL",
         "SKILL_MODE",
         "SKILL_S3_BUCKET",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path.parent)
     settings = ModelSettings()
-    assert settings.standard_model == "from-dotenv"
+    assert settings.standard.model == "from-dotenv"
     assert settings.google_api_key is not None
     assert settings.google_api_key.get_secret_value() == "test-dotenv-key"
     assert "test-dotenv-key" not in repr(settings)
     assert SkillSettings().s3_bucket == "test-bucket"
-    monkeypatch.setenv("LLM_STANDARD_MODEL", "from-process")
-    assert ModelSettings().standard_model == "from-process"
-    assert ModelSettings(standard_model="explicit").standard_model == "explicit"
+    monkeypatch.setenv("LLM_STANDARD__MODEL", "from-process")
+    assert ModelSettings().standard.model == "from-process"
+    assert ModelSettings(standard={"model": "explicit"}).standard.model == "explicit"
 
 
 def test_missing_dotenv_is_optional(monkeypatch, tmp_path: Path) -> None:
@@ -49,23 +49,24 @@ def test_missing_dotenv_is_optional(monkeypatch, tmp_path: Path) -> None:
 def test_file_env_and_explicit_precedence(monkeypatch, tmp_path: Path) -> None:
     file = tmp_path / "settings.toml"
     file.write_text(
-        '[llm-models]\nstandard_model = "from-file"\n[skills]\nmode = "s3"\n'
+        '[llm-models.standard]\nmodel = "from-file"\n[skills]\nmode = "s3"\n'
     )
     monkeypatch.setattr(base, "SETTINGS_FILE", file)
-    monkeypatch.delenv("LLM_STANDARD_MODEL", raising=False)
+    monkeypatch.delenv("LLM_STANDARD__MODEL", raising=False)
     monkeypatch.delenv("SKILL_MODE", raising=False)
     monkeypatch.setenv("SKILL_S3_BUCKET", "test-skills")
-    assert ModelSettings().standard_model == "from-file"
+    assert ModelSettings().standard.model == "from-file"
     assert SkillSettings().mode == "s3"
-    monkeypatch.setenv("LLM_STANDARD_MODEL", "from-env")
-    assert ModelSettings().standard_model == "from-env"
-    assert ModelSettings(standard_model="explicit").standard_model == "explicit"
+    monkeypatch.setenv("LLM_STANDARD__MODEL", "from-env")
+    assert ModelSettings().standard.model == "from-env"
+    assert ModelSettings(standard={"model": "explicit"}).standard.model == "explicit"
 
 
 @pytest.mark.parametrize(
     "content,settings",
     [
         ('[llm-models]\ngoogle_api_key = "not-allowed"\n', ModelSettings),
+        ('[llm-models]\nopenrouter_api_key = "not-allowed"\n', ModelSettings),
         ('[skills]\ns3_bucket = "not-allowed"\n', SkillSettings),
         ('[skills]\ns3_prefix = "not-allowed"\n', SkillSettings),
     ],
@@ -88,8 +89,8 @@ def test_app_uses_shared_sources(monkeypatch, tmp_path: Path) -> None:
 poll_seconds = 0.5
 max_pool_size = 8
 cors_origins = ["http://localhost:5173"]
-[llm-models]
-standard_model = "toml-model"
+[llm-models.standard]
+model = "toml-model"
 [skills]
 mode = "local"
 """)
@@ -101,7 +102,7 @@ DB_PASSWORD=fixture-password
 DB_NAME=stocker_agent_runtime
 APP_POLL_SECONDS=0.25
 GOOGLE_API_KEY=fixture-model-key
-LLM_STANDARD_MODEL=dotenv-model
+LLM_STANDARD__MODEL=dotenv-model
 SKILL_LOCAL_PATH=./test-skills
 UNRELATED_SETTING=ignored
 """)
@@ -119,7 +120,7 @@ UNRELATED_SETTING=ignored
         "APP_MAX_POOL_SIZE",
         "APP_CORS_ORIGINS",
         "GOOGLE_API_KEY",
-        "LLM_STANDARD_MODEL",
+        "LLM_STANDARD__MODEL",
         "SKILL_LOCAL_PATH",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -131,7 +132,7 @@ UNRELATED_SETTING=ignored
     assert settings.poll_seconds == 0.25
     assert settings.max_pool_size == 8
     assert settings.cors_origins == ["http://localhost:5173"]
-    assert ModelSettings().standard_model == "dotenv-model"
+    assert ModelSettings().standard.model == "dotenv-model"
     assert ModelSettings().google_api_key.get_secret_value() == "fixture-model-key"
     assert SkillSettings().local_path == "./test-skills"
     monkeypatch.setenv("DB_PORT", "6655")
@@ -157,12 +158,12 @@ def test_dotenv_uses_base_file_and_process_precedence(monkeypatch, tmp_path):
 
     env = tmp_path / "base-test.env"
     env.write_text(
-        "GOOGLE_API_KEY=fixture-key\nLLM_STANDARD_MODEL=base-model\nDB_USER=app-user\nDB_PASSWORD=fixture-password\n"
+        "GOOGLE_API_KEY=fixture-key\nLLM_STANDARD__MODEL=base-model\nDB_USER=app-user\nDB_PASSWORD=fixture-password\n"
     )
     monkeypatch.setattr(base, "ENV_FILE", env)
     for name in (
         "GOOGLE_API_KEY",
-        "LLM_STANDARD_MODEL",
+        "LLM_STANDARD__MODEL",
         "DB_USER",
         "DB_PASSWORD",
         "DATABASE_URI",
@@ -170,11 +171,40 @@ def test_dotenv_uses_base_file_and_process_precedence(monkeypatch, tmp_path):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path.parent)
     assert ModelSettings().google_api_key.get_secret_value() == "fixture-key"
-    assert ModelSettings().standard_model == "base-model"
+    assert ModelSettings().standard.model == "base-model"
     assert AppSettings().db_user == "app-user"
-    monkeypatch.setenv("LLM_STANDARD_MODEL", "process-model")
-    assert ModelSettings().standard_model == "process-model"
+    monkeypatch.setenv("LLM_STANDARD__MODEL", "process-model")
+    assert ModelSettings().standard.model == "process-model"
     assert (
-        ModelSettings(standard_model="explicit-model").standard_model
+        ModelSettings(standard={"model": "explicit-model"}).standard.model
+        == "explicit-model"
+    )
+
+
+def test_nested_route_merges_provider_and_model_across_sources(monkeypatch, tmp_path):
+    config = tmp_path / "route-settings.toml"
+    config.write_text(
+        '[llm-models.complex]\nprovider="openrouter"\nmodel="file-model"\n'
+    )
+    env = tmp_path / "route-settings-test.env"
+    env.write_text(
+        "LLM_COMPLEX__MODEL=dotenv-model\nOPENROUTER_API_KEY=fixture-router-key\n"
+    )
+    monkeypatch.setattr(base, "SETTINGS_FILE", config)
+    monkeypatch.setattr(base, "ENV_FILE", env)
+    for name in ("LLM_COMPLEX__MODEL", "LLM_COMPLEX__PROVIDER", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    settings = ModelSettings()
+    assert settings.complex.provider == "openrouter"
+    assert settings.complex.model == "dotenv-model"
+    assert settings.openrouter_api_key.get_secret_value() == "fixture-router-key"
+    monkeypatch.setenv("LLM_COMPLEX__MODEL", "process-model")
+    assert ModelSettings().complex.model == "process-model"
+    assert (
+        ModelSettings(complex={"model": "explicit-model"}).complex.provider
+        == "openrouter"
+    )
+    assert (
+        ModelSettings(complex={"model": "explicit-model"}).complex.model
         == "explicit-model"
     )

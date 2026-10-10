@@ -3,11 +3,13 @@
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from graph_fixtures import build_test_resources
+from langgraph.graph.state import CompiledStateGraph
 from stocker_agent.app.core.context import AppContext
 from stocker_agent.app.core.errors import RuntimeProblem
 from stocker_agent.app.core.factory import create_app
@@ -144,59 +146,38 @@ def test_lifespan_shares_settings_and_stops_worker_before_pools(monkeypatch):
 
     order = []
     config = AppSettings(database_uri="postgresql://localhost/stocker_agent_runtime")
-    owner = Mock(info=SimpleNamespace(backend_pid=123))
-    cursor = Mock(fetchone=AsyncMock(return_value={"acquired": True}))
-    owner.execute = AsyncMock(return_value=cursor)
+    database = SimpleNamespace(
+        engine=Mock(),
+        checkpoint_pool=Mock(),
+        owner=Mock(info=SimpleNamespace(backend_pid=123)),
+    )
 
     @asynccontextmanager
-    async def owner_context():
-        yield owner
-        order.append("owner_closed")
-
-    connection = MagicMock()
-    connection.__getitem__ = Mock(return_value=connection)
-    connection.connect = AsyncMock(return_value=owner_context())
-    monkeypatch.setattr(lifecycle, "AsyncConnection", connection)
-
-    class Pool:
-        @classmethod
-        def __class_getitem__(cls, item):
-            return cls
-
-        def __init__(self, *args, **kwargs):
-            self.name = "checkpoint" if "options" in kwargs["kwargs"] else "runtime"
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            order.append(self.name + "_closed")
-
-        async def wait(self):
-            pass
+    async def open_database(settings):
+        assert settings is config
+        yield database
+        order.append("database_closed")
 
     repository = Mock(migrate=AsyncMock(), recover_abandoned=AsyncMock())
     saver = Mock(setup=AsyncMock())
     runner = Mock(
         start=Mock(), stop=AsyncMock(side_effect=lambda: order.append("worker_stopped"))
     )
-    monkeypatch.setattr(lifecycle, "AsyncConnectionPool", Pool)
-    monkeypatch.setattr(lifecycle, "RuntimeRepository", lambda pool: repository)
+    monkeypatch.setattr(lifecycle, "DatabaseFactory", lambda: Mock(open=open_database))
+    monkeypatch.setattr(lifecycle, "RuntimeRepository", lambda engine: repository)
     monkeypatch.setattr(lifecycle, "AsyncPostgresSaver", lambda pool: saver)
     monkeypatch.setattr(lifecycle, "GraphRunner", lambda service, poll: runner)
-    factory = Mock(return_value=Mock())
-    app = create_app(config, {"echo": factory})
+    factory = Mock(return_value=Mock(spec=CompiledStateGraph))
+    app = create_app(
+        config, {"echo": factory}, graph_resources_factory=build_test_resources
+    )
     with TestClient(app):
         assert app.state.context.settings is config
         assert app.state.context.runner is runner
         assert app.state.context.ownership_pid == 123
         runner.start.assert_called_once()
         repository.recover_abandoned.assert_awaited_once()
-        factory.assert_called_once_with(saver)
+        factory.assert_called_once()
+        assert factory.call_args.args[0].checkpointer is saver
     assert app.state.context is None
-    assert order == [
-        "worker_stopped",
-        "checkpoint_closed",
-        "runtime_closed",
-        "owner_closed",
-    ]
+    assert order == ["worker_stopped", "database_closed"]

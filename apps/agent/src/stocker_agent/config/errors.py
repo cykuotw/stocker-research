@@ -3,7 +3,11 @@
 from typing import Literal
 
 ModelSetting = Literal[
-    "GOOGLE_API_KEY", "LLM_INSTANT_MODEL", "LLM_STANDARD_MODEL", "LLM_COMPLEX_MODEL"
+    "GOOGLE_API_KEY",
+    "OPENROUTER_API_KEY",
+    "LLM_INSTANT__MODEL",
+    "LLM_STANDARD__MODEL",
+    "LLM_COMPLEX__MODEL",
 ]
 
 

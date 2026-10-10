@@ -7,17 +7,22 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from graph_fixtures import build_test_resources
 from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.types import interrupt
 from pydantic import ValidationError
 from stocker_agent.app.core.factory import create_app
-from stocker_agent.app.models import RunInput
+from stocker_agent.app.database.factory import DatabaseFactory
+from stocker_agent.app.models import AssistantInput, RunInput, SessionInput
+from stocker_agent.app.repositories.runtime import RuntimeRepository
 from stocker_agent.app.utils.serialization import public_data
 from stocker_agent.config.app import AppSettings
 
 
-def deterministic(saver):
+def deterministic(resources):
+    saver = resources.checkpointer
+
     async def reply(state):
         text = state["messages"][-1].content
         if text == "brief":
@@ -40,7 +45,9 @@ def deterministic(saver):
 REVIEW_ENTRIES = []
 
 
-def review(saver):
+def review(resources):
+    saver = resources.checkpointer
+
     def ask(state):
         REVIEW_ENTRIES.append(True)
         approved = interrupt({"question": "approve?"})
@@ -64,7 +71,11 @@ def settings():
 
 
 def app(settings):
-    return create_app(settings, {"echo": deterministic, "review": review})
+    return create_app(
+        settings,
+        {"echo": deterministic, "review": review},
+        graph_resources_factory=build_test_resources,
+    )
 
 
 def session(client, graph="echo"):
@@ -208,6 +219,13 @@ def test_conflict_cancel_and_shutdown_recovery(settings):
         other = session(client)
         abandoned, _ = submit(client, other, "slow")
         wait(client, abandoned, "running")
+        # The claim commits before graph execution writes its first checkpoint.
+        for _ in range(100):
+            if client.get(f"/api/sessions/{other}/state").json()["next"] == ["reply"]:
+                break
+            time.sleep(0.02)
+        else:
+            pytest.fail("Graph did not persist its unfinished-node checkpoint")
     with TestClient(app(settings)) as client:
         assert (
             client.get(f"/api/runs/{abandoned}").json()["status"] == "recovery_required"
@@ -261,7 +279,8 @@ def test_single_owner_and_static_fallback(settings, tmp_path):
         assert client.get("/health").status_code == 200
 
 
-def recovery_graph(saver):
+def recovery_graph(resources):
+    saver = resources.checkpointer
     """A completed side effect followed by a blocking node, for real process death."""
     from pathlib import Path
 
@@ -300,7 +319,13 @@ def test_pending_and_abrupt_restart_with_explicit_recovery(
     effect = tmp_path / "effect.txt"
     monkeypatch.setenv("RUNTIME_TEST_EFFECT", str(effect))
     # Persist a submission while the worker is stopped, simulating queued work at shutdown.
-    with TestClient(create_app(settings, {"crash": recovery_graph})) as client:
+    with TestClient(
+        create_app(
+            settings,
+            {"crash": recovery_graph},
+            graph_resources_factory=build_test_resources,
+        )
+    ) as client:
         client.portal.call(client.app.state.context.runner.stop)
         sid = session(client, "crash")
         rid, _ = submit(client, sid, "start")
@@ -312,10 +337,11 @@ def test_pending_and_abrupt_restart_with_explicit_recovery(
 from stocker_agent.config import base
 base.ENV_FILE=None
 from test_runtime import recovery_graph
+from graph_fixtures import build_test_resources
 from stocker_agent.config.app import AppSettings
 from stocker_agent.app.core.factory import create_app
 async def main():
-    app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'crash':recovery_graph})
+    app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'crash':recovery_graph}, graph_resources_factory=build_test_resources)
     async with app.router.lifespan_context(app):
         await asyncio.Event().wait()
 asyncio.run(main())
@@ -370,7 +396,13 @@ asyncio.run(main())
             process.kill()
             process.wait(timeout=10)
     monkeypatch.setenv("RUNTIME_TEST_FINISH", "true")
-    with TestClient(create_app(settings, {"crash": recovery_graph})) as client:
+    with TestClient(
+        create_app(
+            settings,
+            {"crash": recovery_graph},
+            graph_resources_factory=build_test_resources,
+        )
+    ) as client:
         assert client.get(f"/api/runs/{rid}").json()["status"] == "recovery_required"
         assert effect.read_text() == "1"
         assert client.get(f"/api/sessions/{sid}/state").json()["next"] == ["finish"]
@@ -399,7 +431,8 @@ def test_real_echo_factory_tools_and_model_events(settings):
     from stocker_agent.graphs.echo import build_echo_graph
     from test_echo_graph import ToolCallingModel, sample_skill
 
-    def factory(saver):
+    def factory(resources):
+        saver = resources.checkpointer
         registry, models = Mock(), Mock()
         registry.get.return_value = sample_skill()
         models.get.return_value = ToolCallingModel(
@@ -418,9 +451,15 @@ def test_real_echo_factory_tools_and_model_events(settings):
                 AIMessage(content="Echo: hello"),
             ]
         )
-        return build_echo_graph(registry, models, checkpointer=saver)
+        return build_echo_graph(
+            build_test_resources(saver, skills=registry, models=models)
+        )
 
-    with TestClient(create_app(settings, {"echo": factory})) as client:
+    with TestClient(
+        create_app(
+            settings, {"echo": factory}, graph_resources_factory=build_test_resources
+        )
+    ) as client:
         sid = session(client)
         rid, _ = submit(client, sid, "hello")
         wait(client, rid)
@@ -473,9 +512,10 @@ def test_client_disconnect_keeps_run_alive(settings):
 from stocker_agent.config import base
 base.ENV_FILE=None
 from test_runtime import deterministic
+from graph_fixtures import build_test_resources
 from stocker_agent.config.app import AppSettings
 from stocker_agent.app.core.factory import create_app
-app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'echo':deterministic})
+app=create_app(AppSettings(database_uri=os.environ['TEST_RUNTIME_DATABASE_URI'],poll_seconds=.02),{'echo':deterministic}, graph_resources_factory=build_test_resources)
 uvicorn.run(app,fd=int(os.environ['RUNTIME_TEST_LISTENER']),log_level='critical')
 """
         process = subprocess.Popen(
@@ -542,3 +582,51 @@ def test_lost_ownership_stops_worker(settings):
                 replacement.get(f"/api/runs/{rid}").json()["status"]
                 == "recovery_required"
             )
+
+
+@pytest.mark.asyncio
+async def test_sqlalchemy_rolls_back_run_when_event_write_fails(settings, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    async with DatabaseFactory().open(settings) as database:
+        repository = RuntimeRepository(database.engine)
+        await repository.migrate()
+        assistant = await repository.assistant(
+            AssistantInput(graph_id="echo", name="rollback")
+        )
+        record = await repository.session(
+            SessionInput(assistant_id=assistant["assistant_id"])
+        )
+        sid = record["session_id"]
+        monkeypatch.setattr(
+            repository,
+            "_event",
+            AsyncMock(side_effect=RuntimeError("fixture event failure")),
+        )
+        with pytest.raises(RuntimeError, match="fixture event failure"):
+            await repository.enqueue(
+                sid, RunInput(input={"messages": []}, idempotency_key="rollback")
+            )
+        assert await repository.list_runs(sid, None, 10) == []
+        assert await repository.session_events(sid, 0, 10) == []
+
+
+def test_sql_like_values_round_trip_without_execution(settings):
+    malicious = "'); DROP SCHEMA runtime CASCADE; --"
+    with TestClient(app(settings)) as client:
+        assistant = client.post(
+            "/api/assistants", json={"graph_id": "echo", "name": malicious}
+        ).json()
+        assert assistant["name"] == malicious
+        record = client.post(
+            "/api/sessions",
+            json={"assistant_id": assistant["assistant_id"], "title": malicious},
+        ).json()
+        assert record["title"] == malicious
+        run_id, body = submit(client, record["session_id"], malicious, key=malicious)
+        wait(client, run_id, "completed")
+        replay = client.post(f"/api/sessions/{record['session_id']}/runs", json=body)
+        assert replay.json()["run_id"] == run_id
+        state = client.get(f"/api/sessions/{record['session_id']}/state").json()
+        assert state["values"]["messages"][-1]["content"] == "reply: " + malicious
+        assert client.get("/api/assistants").status_code == 200

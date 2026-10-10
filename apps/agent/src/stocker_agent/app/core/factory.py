@@ -10,10 +10,11 @@ from fastapi.responses import JSONResponse
 from starlette.types import Lifespan
 
 from stocker_agent.app.core.errors import RuntimeProblem
-from stocker_agent.app.core.lifespan import GraphFactory
 from stocker_agent.app.core.lifespan import lifespan as runtime_lifespan
 from stocker_agent.app.routers import inspection, runs, sessions, system
 from stocker_agent.config.app import AppSettings
+from stocker_agent.graph_runtime.registry import GraphFactory
+from stocker_agent.graph_runtime.resources import GraphResourcesFactory
 
 
 def configure_static(app: FastAPI, directory: Path | None) -> None:
@@ -36,12 +37,18 @@ def create_app(
     graph_factories: dict[str, GraphFactory] | None = None,
     *,
     lifespan: Lifespan[FastAPI] | None = None,
+    graph_resources_factory: GraphResourcesFactory | None = None,
 ) -> FastAPI:
     config = settings if settings is not None else AppSettings()
     lifecycle = (
         lifespan
         if lifespan is not None
-        else partial(runtime_lifespan, config=config, graph_factories=graph_factories)
+        else partial(
+            runtime_lifespan,
+            config=config,
+            graph_factories=graph_factories,
+            graph_resources_factory=graph_resources_factory,
+        )
     )
     app = FastAPI(title="Stocker Agent Runtime", version="0.1.0", lifespan=lifecycle)
     app.state.context = None
