@@ -1,4 +1,4 @@
-.PHONY: dev ruff studio test-agent
+.PHONY: dev ruff ruff-fix studio test-agent
 
 dev:
 	cd apps/agent && uv run fastapi dev
@@ -6,6 +6,11 @@ dev:
 ruff:
 	uv run --project apps/agent ruff check apps/agent
 	uv run --project apps/agent ruff format --check apps/agent
+
+ruff-fix:
+	uv run --project apps/agent ruff check --fix apps/agent
+	uv run --project apps/agent ruff format apps/agent
+	uv run --project apps/agent ruff check apps/agent
 
 test-agent:
 	uv run --project apps/agent pytest apps/agent/tests

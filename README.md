@@ -28,6 +28,7 @@ Run commands from the repository root:
 uv sync --project apps/agent --locked
 pnpm --dir apps/studio install --frozen-lockfile
 make ruff
+make ruff-fix # Apply automatic lint fixes and formatting
 make studio
 ```
 
