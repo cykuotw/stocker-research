@@ -45,11 +45,11 @@
 ## Runtime and persistence
 
 - Use the custom FastAPI server for runtime endpoints, sessions, runs, and durable observation events. LangGraph owns graph execution, state, checkpoints, interrupts, and resume; the PostgreSQL checkpointer manages its own tables. No official Agent Server or LangSmith account is required.
-- Keep runtime data in `stocker_agent_runtime`, with custom metadata in `runtime` and LangGraph-managed tables in `checkpoints`. Separate business/research data; do not duplicate checkpoint-owned conversation/state persistence or modify checkpointer-managed tables manually.
+- Keep runtime data in `stocker_research`, with custom metadata in `runtime` and LangGraph-managed tables in `checkpoints`. Separate business/research data; do not duplicate checkpoint-owned conversation/state persistence or modify checkpointer-managed tables manually.
 - Keep human-review nodes small and safe to replay. Put non-idempotent side effects in subsequent nodes and use idempotency keys where needed.
 - Use LangGraph interrupts and resume commands for human review. Treat each node as an execution boundary that may run again.
 - Treat future AG-UI events as transient communication, not persistence. Conversation continuity uses the same thread identifier across HTTP requests; server-to-client streaming can use SSE.
-- PostgreSQL and object storage are planned infrastructure. Do not claim they are configured until configuration and integration have been verified.
+- Local PostgreSQL connectivity is verified for Agent and Knowledge, with pgvector enabled in Knowledge. Object storage and document/research-domain persistence remain planned; verify each environment before claiming readiness.
 
 ## Task tracking
 
@@ -86,6 +86,7 @@
 ## Public documentation
 
 - Keep README files and public documentation focused on product, architecture, setup, and operator usage.
+- Keep documentation concise and navigation-focused. Architecture documents are the architecture entry points; link to authoritative code, settings, and tests instead of duplicating configurable values or maintaining redundant backend guides.
 - Distinguish implemented capabilities from planned work. Document only commands supported by the repository.
 - Do not expose internal task tracking, phase labels, agent workflows, task status, private filesystem paths, credentials, account/resource identifiers, or private operational details.
 
@@ -111,3 +112,4 @@
 - Knowledge must not import Agent graph state or runtime repositories. Agent consumes Knowledge through public service contracts.
 - Quantitative data remains in the separate Stocker project.
 - Root commands include `make dev-agent`, `make dev-knowledge`, `make test-agent`, `make test-knowledge`, `make ruff`, and `make studio`. `make dev` aliases Agent development. No runnable Knowledge dashboard exists yet.
+- Local development uses one PostgreSQL server, with `stocker_research` for Agent and `stocker_knowledge` for Knowledge, separate logins, and loopback port 5433. Knowledge loads its own `.env`; keep `KNOWLEDGE_DB_*` and `KNOWLEDGE_DATABASE_URI` separate from Agent settings.
