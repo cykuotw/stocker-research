@@ -131,7 +131,7 @@ async function fixtureRuntime(page: Page) {
         exception_type: "MissingModelSetting",
         setting: "GOOGLE_API_KEY",
         message:
-          "Configure GOOGLE_API_KEY in apps/agent/.env (or the process environment), then restart the backend before recovery.",
+          "Configure GOOGLE_API_KEY in agent/.env (or the process environment), then restart the backend before recovery.",
       };
     },
     interrupt: () => {
@@ -155,7 +155,7 @@ test("missing model configuration is explained before explicit recovery", async 
     .getByRole("button", { name: "Refresh session", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("GOOGLE_API_KEY");
-  await expect(page.getByRole("alert")).toContainText("apps/agent/.env");
+  await expect(page.getByRole("alert")).toContainText("agent/.env");
   await expect(page.getByRole("alert")).toContainText("restart the backend");
   await expect(
     page.getByRole("button", { name: "Recover run", exact: true }),

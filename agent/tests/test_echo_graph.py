@@ -8,6 +8,7 @@ from graph_fixtures import build_test_resources
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
+
 from stocker_agent.config.llm import ModelSettings, ModelTier
 from stocker_agent.graphs.echo import build_echo_graph
 from stocker_agent.llm import ModelRouter

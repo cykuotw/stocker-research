@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
+
 from stocker_agent.app.services.runner import GraphRunner
 
 

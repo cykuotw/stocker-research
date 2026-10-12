@@ -16,7 +16,7 @@ class MissingModelSetting(ValueError):
         self.setting = setting
         self.code = "model_configuration_missing"
         self.hint = (
-            f"Configure {setting} in apps/agent/.env "
+            f"Configure {setting} in agent/.env "
             "(or the process environment), then restart the backend before recovery."
         )
         super().__init__(self.hint)

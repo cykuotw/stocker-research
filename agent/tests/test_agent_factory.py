@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import ValidationError
+
 from stocker_agent.agent_runtime import factory as module
 from stocker_agent.agent_runtime.definitions import ECHO_AGENT, AgentDefinition
 from stocker_agent.agent_runtime.factory import AgentFactory

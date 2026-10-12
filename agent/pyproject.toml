@@ -1,7 +1,7 @@
 [project]
 name = "stocker-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Research workflow runtime for Stocker Research"
 readme = "README.md"
 authors = [
     { name = "cykuo", email = "cykuotw45@gmail.com" }

@@ -10,7 +10,7 @@ runs, execution events, checkpoints, and interrupts.
 Requires Node.js 22.12+ and pnpm 12.10.1. From the repository root:
 
 ```bash
-pnpm --dir apps/studio install --frozen-lockfile
+pnpm --dir studio install --frozen-lockfile
 make dev
 ```
 
@@ -20,9 +20,10 @@ In another terminal:
 make studio
 ```
 
-`make studio` builds static assets and previews them at `http://127.0.0.1:3000`.
-For frontend development with hot reload, use `pnpm --dir apps/studio dev`
-at `http://127.0.0.1:5173`. Both default to the API at `http://127.0.0.1:8000`.
+`make studio` starts the Vite development server with hot reload at
+`http://127.0.0.1:5173`. You can also use `pnpm --dir studio run dev`, or
+`pnpm run dev` from `studio/`. The UI defaults to the API at
+`http://127.0.0.1:8000`.
 The frontend has no Node application server, Next.js, or Agent Server proxy.
 
 ## Debug a graph
@@ -47,6 +48,10 @@ view shows observed spans, rather than the full graph definition or an external
 tracing service. Uploaded attachments, editable checkpoint branches, and a
 research-artifact viewer are not implemented.
 
+See [backend integration](../docs/studio/backend.md) and
+[Studio architecture](../docs/studio/architecture.md). The standalone user-facing
+Chat bubble is [planned separately](../chat/README.md).
+
 ## Choose a service
 
 The Service field accepts a compatible runtime URL without rebuilding. Browser
@@ -61,7 +66,7 @@ work; no remote deployment has been verified.
 ## Serve built assets with FastAPI
 
 ```bash
-pnpm --dir apps/studio build
+pnpm --dir studio build
 APP_STATIC_DIRECTORY=../studio/dist make dev
 ```
 
@@ -72,14 +77,14 @@ not load local dotenv files (`envDir: false`); service selection is browser-side
 ## Checks
 
 ```bash
-pnpm --dir apps/studio lint
-pnpm --dir apps/studio build
-pnpm --dir apps/studio exec playwright install chromium
-pnpm --dir apps/studio test
+pnpm --dir studio lint
+pnpm --dir studio build
+pnpm --dir studio exec playwright install chromium
+pnpm --dir studio test
 ```
 
 With an existing Google Chrome installation, use
-`STUDIO_BROWSER_CHANNEL=chrome pnpm --dir apps/studio test` instead of downloading
+`STUDIO_BROWSER_CHANNEL=chrome pnpm --dir studio test` instead of downloading
 a browser. Fixture tests cover chat, inspection, resume input, service switching,
 SSE framing/reconnect, and errors. Live browser tests are opt-in using
 `STUDIO_LIVE_API_URL` and must target a runtime with deterministic test graphs

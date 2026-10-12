@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from pydantic import SecretStr, ValidationError
+
 from stocker_agent.config.llm import ModelSettings, ModelTier
 from stocker_agent.llm import (
     GeminiProvider,

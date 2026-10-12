@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from graph_fixtures import build_test_resources
 from langgraph.graph.state import CompiledStateGraph
+
 from stocker_agent.app.core.context import AppContext
 from stocker_agent.app.core.errors import RuntimeProblem
 from stocker_agent.app.core.factory import create_app

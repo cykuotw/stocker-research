@@ -6,6 +6,7 @@ import pytest
 from graph_fixtures import build_test_resources
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
+
 from stocker_agent.graph_runtime.catalog import GRAPH_FACTORIES
 from stocker_agent.graph_runtime.registry import GraphRegistry
 from stocker_agent.tools.greeting import print_user_message

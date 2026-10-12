@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeout
+
 from stocker_agent.app.database import checkpoints
 from stocker_agent.app.database.factory import DatabaseFactory
 from stocker_agent.app.repositories.runtime import RuntimeRepository

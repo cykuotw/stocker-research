@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+
 from stocker_agent.config.skills import (
     AGENT_DIRECTORY,
     LocalSkillSource,

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+
 from stocker_agent.skills.registry import LoadedSkill, SkillRegistry
 from stocker_agent.skills.store import LocalSkillStore, S3SkillStore
 

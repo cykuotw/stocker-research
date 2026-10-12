@@ -5,6 +5,9 @@ PostgreSQL. The skill-driven `echo` graph is implemented; research workflows and
 data integrations are planned. No official Agent Server, LangSmith account,
 cloud license, or Redis is required. Tracing is disabled at startup.
 
+See [backend operations](../docs/agent/backend.md) and
+[service architecture](../docs/agent/architecture.md).
+
 ## Local setup
 
 Requires Python 3.14+, `uv`, and PostgreSQL 16. Use a persistent local database
@@ -13,7 +16,7 @@ that database and owns the `runtime` and `checkpoints` schemas; it does not need
 SUPERUSER, CREATEDB, or CREATEROLE.
 
 Supply credentials through process environment or an operator-managed
-`apps/agent/.env`:
+`agent/.env`:
 
 | Variable | Meaning |
 | --- | --- |
@@ -28,12 +31,12 @@ Supply credentials through process environment or an operator-managed
 From the repository root:
 
 ```bash
-uv sync --project apps/agent --locked
+uv sync --project agent --locked
 make dev
 ```
 
 `make dev` starts FastAPI with reload at `http://127.0.0.1:8000`. The shared
-configuration layer loads `apps/agent/.env` automatically, including DB,
+configuration layer loads `agent/.env` automatically, including DB,
 model, and skill settings; `uv --env-file` is not required. The file is optional
 when all required credentials are supplied through process environment.
 
@@ -207,13 +210,13 @@ automatic pruning and deletion APIs are not implemented.
 
 ## Skills and models
 
-Local research skills belong in `apps/agent/skills/` (Git-ignored). Each directory
+Local research skills belong in `agent/skills/` (Git-ignored). Each directory
 contains `SKILL.md` with name/description frontmatter and `manifest.yaml` with
 matching `id` and `version`. Optional fields include `required_tools`,
 `allowed_agents`, `llm_model`, and `status`. Skills cannot grant tool permissions.
 
 `SKILL_MODE=local|s3` selects the source; `SKILL_LOCAL_PATH` defaults to `./skills`,
-resolved from `apps/agent`. S3 requires `SKILL_S3_BUCKET`; `SKILL_S3_PREFIX`
+resolved from `agent`. S3 requires `SKILL_S3_BUCKET`; `SKILL_S3_PREFIX`
 defaults to `skills`. `SkillRegistry.refresh()` updates subsequent snapshots;
 failed refreshes retain the previous snapshot. There is no HTTP refresh endpoint
 or automatic refresh. Optional references and durable skill-version pinning are
@@ -257,12 +260,12 @@ model calls remain manually verified; automated tests use fake responses.
 
 ## UI and checks
 
-`apps/studio` is the React + Vite client for this API, providing sessions, chat,
+`studio` is the React + Vite client for this API, providing sessions, chat,
 execution events/traces, state, checkpoints, and interrupt/resume controls. See
 [Studio setup](../studio/README.md). Optional
 `APP_STATIC_DIRECTORY` serves a built static UI; missing assets allow API-only
 startup, and unknown API routes keep their errors instead of falling through to
-the UI. Relative paths resolve from `apps/agent`. `APP_CORS_ORIGINS` accepts a
+the UI. Relative paths resolve from `agent`. `APP_CORS_ORIGINS` accepts a
 JSON list, defaulting to local ports 3000 and 5173. Remote authentication and TLS
 are not implemented; the server binds to loopback by default.
 

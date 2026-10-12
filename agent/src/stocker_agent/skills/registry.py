@@ -81,7 +81,7 @@ class SkillRegistry:
         self.refresh()
 
     @classmethod
-    def from_settings(cls, settings: SkillSettings | None = None) -> "SkillRegistry":
+    def from_settings(cls, settings: SkillSettings | None = None) -> SkillRegistry:
         source = (settings if settings is not None else SkillSettings()).source
         store: SkillStore
         if isinstance(source, LocalSkillSource):

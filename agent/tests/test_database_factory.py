@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import insert
 from sqlalchemy.dialects.postgresql import dialect
+
 from stocker_agent.app.database import factory as module
 from stocker_agent.app.database.tables import assistants
 from stocker_agent.config.app import AppSettings

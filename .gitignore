@@ -1,4 +1,4 @@
-# Python-generated files
+# Python-generated files and local tooling artifacts
 __pycache__/
 *.py[oc]
 build/
@@ -6,9 +6,10 @@ dist/
 wheels/
 *.egg-info
 .ruff_cache/
-
-# Virtual environments
-.venv
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
 
 # Frontend and local runtime artifacts
 node_modules/
@@ -16,13 +17,21 @@ node_modules/
 .langgraph_api/
 *.tsbuildinfo
 next-env.d.ts
-.env
-.env.*
-!apps/agent/.env.example
+test-results/
+playwright-report/
 *.log
 
-# Local application research skills (published separately)
-/apps/agent/skills/
+# Local credentials
+.env
+.env.*
+*.tfvars
+secrets/
+*.pem
+runtime-env*.json
+worker-runtime*.json
+
+# Local research skills (published separately)
+/agent/skills/
 
 # Agent task management
 .agents/*

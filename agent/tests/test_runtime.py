@@ -12,6 +12,7 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.types import interrupt
 from pydantic import ValidationError
+
 from stocker_agent.app.core.factory import create_app
 from stocker_agent.app.database.factory import DatabaseFactory
 from stocker_agent.app.models import AssistantInput, RunInput, SessionInput
@@ -428,8 +429,9 @@ asyncio.run(main())
 def test_real_echo_factory_tools_and_model_events(settings):
     from unittest.mock import Mock
 
-    from stocker_agent.graphs.echo import build_echo_graph
     from test_echo_graph import ToolCallingModel, sample_skill
+
+    from stocker_agent.graphs.echo import build_echo_graph
 
     def factory(resources):
         saver = resources.checkpointer
