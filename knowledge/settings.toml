@@ -1,0 +1,21 @@
+# Non-secret service settings. Secrets are supplied through process environment.
+[app]
+cors_origins = []
+
+# Model routes are intentionally unconfigured until an extractor is selected.
+# Configure LLM_<TIER>__MODEL or add a model to the corresponding route below.
+[llm-models]
+timeout_seconds = 60
+max_retries = 2
+
+[llm-models.instant]
+provider = "gemini"
+model = ""
+
+[llm-models.standard]
+provider = "gemini"
+model = ""
+
+[llm-models.complex]
+provider = "gemini"
+model = ""

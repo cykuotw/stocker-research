@@ -1,0 +1,47 @@
+[project]
+name = "stocker-knowledge"
+version = "0.1.0"
+description = "Document and knowledge retrieval service for Stocker"
+readme = "README.md"
+authors = [
+    { name = "cykuo", email = "cykuotw45@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.143.0",
+    "httpx>=0.28.1",
+    "langchain-core>=1.6.9",
+    "langchain-google-genai>=4.4.0",
+    "langchain-openrouter>=0.2.9",
+    "pydantic>=2.14.0",
+    "pydantic-settings>=2.15.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # google-genai uses a deprecated typing internal; remove when upstream fixes it.
+    "ignore:^'_UnionGenericAlias' is deprecated and slated for removal in Python 3\\.17$:DeprecationWarning:google\\.genai\\.types$",
+]
+
+[tool.pylint.basic]
+argument-naming-style = "snake_case"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.10",
+    "ty>=0.0.85",
+]
+
+[tool.fastapi]
+entrypoint = "knowledge.server:app"
+
+[tool.uv.build-backend]
+module-name = "knowledge"
