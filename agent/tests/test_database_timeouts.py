@@ -23,7 +23,7 @@ from stocker_agent.config.app import AppSettings
 @pytest.mark.parametrize("failure", [False, True])
 @pytest.mark.asyncio
 async def test_checkpoint_migration_restores_timeout(monkeypatch, failure):
-    config = AppSettings(database_uri="postgresql://localhost/stocker_agent_runtime")
+    config = AppSettings(database_uri="postgresql://localhost/stocker_research")
     connection = Mock(execute=AsyncMock())
 
     @asynccontextmanager
@@ -70,7 +70,7 @@ def test_database_limits_reject_zero(name):
 def test_connection_timeout_overrides_uri_and_environment(monkeypatch):
     monkeypatch.setenv("APP_CONNECT_TIMEOUT_SECONDS", "7")
     config = AppSettings(
-        database_uri="postgresql://localhost/stocker_agent_runtime?connect_timeout=90"
+        database_uri="postgresql://localhost/stocker_research?connect_timeout=90"
     )
     assert conninfo_to_dict(config.conninfo())["connect_timeout"] == "7"
 

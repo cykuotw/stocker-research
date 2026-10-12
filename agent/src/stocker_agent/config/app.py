@@ -66,7 +66,7 @@ class AppSettings(AppOptions):
     db_port: int = Field(default=5433, ge=1, le=65535, validation_alias="DB_PORT")
     db_user: str = Field(default="stocker_agent_app", validation_alias="DB_USER")
     db_password: SecretStr | None = Field(default=None, validation_alias="DB_PASSWORD")
-    db_name: str = Field(default="stocker_agent_runtime", validation_alias="DB_NAME")
+    db_name: str = Field(default="stocker_research", validation_alias="DB_NAME")
 
     @model_validator(mode="after")
     def validate_database(self):
@@ -79,8 +79,8 @@ class AppSettings(AppOptions):
                 raise ValueError("DATABASE_URI is invalid") from None
         else:
             target = self.db_name
-        if target != "stocker_agent_runtime":
-            raise ValueError("Runtime may connect only to stocker_agent_runtime")
+        if target != "stocker_research":
+            raise ValueError("Runtime may connect only to stocker_research")
         return self
 
     def conninfo(self) -> str:

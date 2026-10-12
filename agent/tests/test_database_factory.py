@@ -62,7 +62,7 @@ async def test_factory_closes_pool_engine_owner_in_order(monkeypatch, fail_open)
 
     monkeypatch.setattr(module, "AsyncConnectionPool", Pool)
     settings = AppSettings(
-        database_uri="postgresql://localhost/stocker_agent_runtime",
+        database_uri="postgresql://localhost/stocker_research",
         runtime_pool_size=2,
         checkpoint_pool_size=3,
         pool_timeout_seconds=0.5,

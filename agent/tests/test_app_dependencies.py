@@ -151,7 +151,7 @@ def test_lifespan_shares_settings_and_stops_worker_before_pools(
 
     order = []
     config = AppSettings(
-        database_uri="postgresql://localhost/stocker_agent_runtime",
+        database_uri="postgresql://localhost/stocker_research",
         shutdown_timeout_seconds=0.02,
     )
     database = SimpleNamespace(
