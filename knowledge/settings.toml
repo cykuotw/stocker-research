@@ -2,6 +2,13 @@
 [app]
 cors_origins = []
 
+[database]
+pool_size = 2
+connect_timeout_seconds = 5
+pool_timeout_seconds = 5
+statement_timeout_seconds = 30
+lock_timeout_seconds = 5
+
 # Initial Gemini routes; validate quality for each extraction task before rollout.
 # Override individual routes with LLM_<TIER>__MODEL and LLM_<TIER>__PROVIDER.
 [llm-models]

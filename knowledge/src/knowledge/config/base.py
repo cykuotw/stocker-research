@@ -1,16 +1,18 @@
-"""Process environment and non-secret TOML configuration for this service."""
+"""Service-local environment, dotenv, and non-secret TOML configuration."""
 
 from pathlib import Path
 from typing import ClassVar
 
 from pydantic_settings import (
     BaseSettings,
+    DotEnvSettingsSource,
     PydanticBaseSettingsSource,
     TomlConfigSettingsSource,
 )
 
 SERVICE_DIRECTORY = Path(__file__).resolve().parents[3]
 SETTINGS_FILE = SERVICE_DIRECTORY / "settings.toml"
+ENV_FILE: Path | None = SERVICE_DIRECTORY / ".env"
 
 
 class FileSettings(BaseSettings):
@@ -43,5 +45,11 @@ class FileSettings(BaseSettings):
             toml_table_header=(cls.settings_section,),
         )
 
-        # No implicit access to copied dotenv files or secret directories.
-        return init_settings, env_settings, file_source
+        local_env = DotEnvSettingsSource(
+            settings_cls,
+            env_file=ENV_FILE,
+            env_file_encoding="utf-8",
+            dotenv_filtering="only_existing",
+        )
+        # Service-local credentials only; no Agent dotenv or secret-directory reads.
+        return init_settings, env_settings, local_env, file_source

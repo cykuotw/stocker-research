@@ -14,7 +14,11 @@ class ServiceInfo(BaseModel):
 
     service: Literal["stocker-knowledge"] = "stocker-knowledge"
     version: Literal["0.1.0"] = "0.1.0"
-    implemented_capabilities: tuple[str, ...] = ("health", "service_info")
+    implemented_capabilities: tuple[str, ...] = (
+        "health",
+        "service_info",
+        "postgres_connection",
+    )
     planned_capabilities: tuple[str, ...] = (
         "document_ingestion",
         "knowledge_extraction",

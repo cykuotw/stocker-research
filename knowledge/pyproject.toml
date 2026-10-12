@@ -16,6 +16,8 @@ dependencies = [
     "langchain-openrouter>=0.2.9",
     "pgvector>=0.5.1",
     "pgvector-haystack>=7.0.0",
+    "psycopg-pool>=3.3.3",
+    "psycopg[binary]>=3.3.6",
     "pydantic>=2.14.0",
     "pydantic-settings>=2.15.0",
 ]
