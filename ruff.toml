@@ -1,0 +1,6 @@
+# Both service manifests require Python 3.14.
+target-version = "py314"
+src = ["agent/src", "knowledge/src"]
+
+[lint.isort]
+known-first-party = ["stocker_agent", "knowledge"]
