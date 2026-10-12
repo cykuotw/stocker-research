@@ -1,56 +1,72 @@
-# Stocker
+# Stocker Research
 
-An AI research assistant for Taiwan equities, with company research and
-cyclical-bottom analysis as its initial focus. Research workflows and data
-integrations are planned; the backend includes a skill-driven echo graph for local testing.
-Automated trading is outside the initial scope.
+Research workflows and document knowledge services for Stocker’s Taiwan equity
+research platform. Quantitative data collection remains in the separate Stocker
+project. Automated trading is outside the initial scope.
 
-## Layout
+## Layout and service boundaries
 
 ```text
-apps/
-  agent/    Python backend using LangGraph and LangChain
-  studio/   Agent Chat UI for development and debugging
-  web/      Reserved for the production frontend
-packages/   Reserved for shared frontend packages
+agent/       FastAPI + LangGraph research runtime; Python package stocker_agent
+knowledge/   Independent FastAPI knowledge service; Python package knowledge
+studio/      React + Vite Agent runtime and inspection UI
+dashboard/   Reserved for the Knowledge document and retrieval management UI
+chat/        Reserved for the user-facing chat bubble and conversation panel
+docs/        Architecture and operator documentation
+Makefile     Development commands for both backends and Agent Studio
 ```
 
-The planned backend uses Gemini, structured financial data, and traceable
-research evidence. Studio provides a React + Vite development UI for sessions, chat, execution
-events, observed traces, state, and checkpoint inspection.
+Agent owns research methods, sessions, runs, checkpoints, synthesis, and research
+artifacts. Knowledge owns document ingestion, extraction, provenance, and retrieval.
+They keep independent manifests, lockfiles, settings, tests, and deployments.
+Agent integration through Knowledge’s public API/MCP contracts is planned.
+
+The Agent runtime and skill-driven echo graph are implemented. Agent Studio
+supports sessions, chat, execution inspection, state, and checkpoints. Research
+workflows and external data integrations remain planned.
+
+Knowledge provides `/health`, `/info`, and lazy model-provider adapters.
+Ingestion, extraction, persistence, retrieval, and MCP are planned. Its dashboard
+is a documentation placeholder, separate from Agent Studio.
+The standalone Chat bubble is also a documentation placeholder.
 
 ## Development
 
-Requires Python 3.14+, `uv`, Node.js 22+, pnpm 12.10.1, and `make`.
-Run commands from the repository root:
+Requires Python 3.14+, `uv`, and `make`. Agent also requires PostgreSQL configuration;
+Knowledge’s current foundation starts without database or model credentials.
+Studio requires Node.js 22.12+ and pnpm 12.10.1.
+
+From the repository root:
 
 ```bash
-uv sync --project apps/agent --locked
-pnpm --dir apps/studio install --frozen-lockfile
+uv sync --project agent --locked
+uv sync --project knowledge --locked
+make dev-agent       # http://127.0.0.1:8000; make dev is an alias
+make dev-knowledge   # http://127.0.0.1:8001; run in another terminal
 make ruff
-make ruff-fix # Apply automatic lint fixes and formatting
-make studio
+make test            # both backend suites
 ```
 
-`make studio` builds Studio and previews static assets at
-`http://127.0.0.1:3000`. For hot reload, run `pnpm --dir apps/studio dev`
-at `http://127.0.0.1:5173`.
-
-`make dev` starts the custom FastAPI + PostgreSQL backend on port 8000. See
-[local runtime setup](apps/agent/README.md) for configuration, API endpoints,
-and persistence. No LangSmith account, license, or Agent Server is needed.
-Studio connects to the custom runtime through its Service URL field. Select a
-graph and session to chat and inspect execution. API documentation remains
-available at `http://127.0.0.1:8000/docs`.
-
-Frontend checks and build:
+For Agent Studio:
 
 ```bash
-pnpm --dir apps/studio lint
-pnpm --dir apps/studio build
+pnpm --dir studio install --frozen-lockfile
+make studio          # hot reload at http://127.0.0.1:5173
 ```
 
-See [backend notes](apps/agent/README.md) and [Studio notes](apps/studio/README.md).
+You can also run `pnpm --dir studio run dev` directly.
+Each UI owns its dependencies; there is no root pnpm workspace or shared UI package.
 
-Each frontend manages its own package manifest, pnpm lockfile, and dependencies.
-There is no root pnpm workspace; `apps/web/` remains a placeholder.
+See [Agent setup](agent/README.md), [Studio setup](studio/README.md),
+[Knowledge setup](knowledge/README.md), and
+[Knowledge architecture](docs/knowledge/architecture.md).
+
+## Component documentation
+
+| Component | Setup and backend integration | Architecture |
+| --- | --- | --- |
+| Agent | [Backend](docs/agent/backend.md), [README](agent/README.md) | [Architecture](docs/agent/architecture.md) |
+| Knowledge | [Backend](docs/knowledge/backend.md), [README](knowledge/README.md) | [Architecture](docs/knowledge/architecture.md) |
+| Studio | [Backend integration](docs/studio/backend.md), [README](studio/README.md) | [Architecture](docs/studio/architecture.md) |
+| Dashboard | [Backend integration](docs/dashboard/backend.md), [README](dashboard/README.md) | [Target architecture](docs/dashboard/architecture.md) |
+| Chat | [Backend integration](docs/chat/backend.md), [README](chat/README.md) | [Target architecture](docs/chat/architecture.md) |
