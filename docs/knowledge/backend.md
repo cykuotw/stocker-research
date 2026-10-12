@@ -71,10 +71,21 @@ independently of the shell's working directory. Restart after changing settings.
 | `GOOGLE_API_KEY` | Gemini credential, required only when using Gemini |
 | `OPENROUTER_API_KEY` | OpenRouter credential, required only when using OpenRouter |
 
-Routes default to Gemini with no model selected. Select model IDs before invoking
-an extraction component; no model catalog or account availability is assumed.
-Tiers may share a provider/model client. There is no automatic provider fallback.
-Credentials are excluded from TOML and settings representations.
+The checked-in settings select initial Gemini routes matching Agent:
+
+| Tier | Model ID | Intended Knowledge tasks |
+| --- | --- | --- |
+| `instant` | `gemini-3.5-flash-lite` | Document classification and simple extraction |
+| `standard` | `gemini-3.8-flash` | Targeted extraction and evidence organization |
+| `complex` | `gemini-3.8-flash` | Cross-section reasoning and contradiction analysis |
+
+These task assignments are planned; extraction components are not implemented.
+The IDs are listed in Google's [Flash-Lite documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+and [Flash documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash).
+Account availability and extraction quality have not been verified. Tiers may
+share a provider/model client; selecting `complex` does not set a separate thinking
+budget. There is no automatic provider fallback. Credentials are excluded from
+TOML and settings representations.
 
 The service does not consume Agent database or research-skill configuration.
 Knowledge database and storage configuration will be introduced with persistence,
