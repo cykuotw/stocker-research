@@ -9,10 +9,13 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "fastapi[standard]>=0.143.0",
+    "haystack-ai>=3.3.0",
     "httpx>=0.28.1",
     "langchain-core>=1.6.9",
     "langchain-google-genai>=4.4.0",
     "langchain-openrouter>=0.2.9",
+    "pgvector>=0.5.1",
+    "pgvector-haystack>=7.0.0",
     "pydantic>=2.14.0",
     "pydantic-settings>=2.15.0",
 ]
